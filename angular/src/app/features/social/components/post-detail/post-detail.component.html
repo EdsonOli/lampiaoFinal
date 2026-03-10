@@ -1,0 +1,245 @@
+<div class="container py-4">
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  } @else if (post()) {
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+              <a routerLink="/social">Timeline</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+              {{ post()!.title }}
+            </li>
+          </ol>
+        </nav>
+
+        <!-- Post Card -->
+        <article class="post-card">
+          <!-- Post Header -->
+          <div class="post-header">
+            <div class="d-flex align-items-center gap-3">
+              <!-- Avatar -->
+              <div class="user-avatar">
+                @if (post()!.user?.profileImageUrl) {
+                  <img [src]="post()!.user!.profileImageUrl" [alt]="post()!.user!.userName" />
+                } @else {
+                  <div class="avatar-placeholder">
+                    <i class="bi bi-person-fill"></i>
+                  </div>
+                }
+              </div>
+
+              <!-- User Info -->
+              <div class="user-info">
+                <h6 class="mb-0">
+                  <a [routerLink]="['/profile', post()!.userId]">
+                    {{ post()!.user?.name || post()!.user?.userName }}
+                  </a>
+                </h6>
+                <small class="text-muted">{{ formatDate(post()!.creationTime) }}</small>
+              </div>
+            </div>
+
+            <!-- Visibility Badge -->
+            @if (!post()!.isPublic) {
+              <span class="badge bg-secondary">
+                <i class="bi bi-lock-fill"></i> Privado
+              </span>
+            }
+          </div>
+
+          <!-- Book Info -->
+          @if (post()!.book) {
+            <div class="book-reference">
+              <div class="row align-items-center">
+                <div class="col-auto">
+                  @if (post()!.book!.imageUrl) {
+                    <img [src]="post()!.book!.imageUrl" [alt]="post()!.book!.name" class="book-cover" />
+                  }
+                </div>
+                <div class="col">
+                  <small class="text-muted d-block">Resenha sobre</small>
+                  <h5 class="mb-1">
+                    <a [routerLink]="['/books', post()!.book!.id]">
+                      {{ post()!.book!.name }}
+                    </a>
+                  </h5>
+                  @if (post()!.book!.author) {
+                    <p class="text-muted mb-0">por {{ post()!.book!.author }}</p>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Post Content -->
+          <div class="post-content">
+            <h2 class="post-title">{{ post()!.title }}</h2>
+            <p class="post-text">{{ post()!.content }}</p>
+          </div>
+
+          <!-- Post Actions -->
+          <div class="post-actions">
+            <button 
+              class="btn btn-outline-danger"
+              [class.btn-danger]="post()!.isLikedByCurrentUser"
+              [disabled]="!isAuthenticated()"
+              (click)="toggleLike()">
+              <i class="bi" [class.bi-heart]="!post()!.isLikedByCurrentUser" [class.bi-heart-fill]="post()!.isLikedByCurrentUser"></i>
+              {{ post()!.likesCount }} {{ post()!.likesCount === 1 ? 'curtida' : 'curtidas' }}
+            </button>
+
+            <span class="text-muted">
+              <i class="bi bi-chat"></i>
+              {{ comments().length }} {{ comments().length === 1 ? 'comentário' : 'comentários' }}
+            </span>
+          </div>
+        </article>
+
+        <!-- Comments Section -->
+        <div class="comments-section">
+          <h4 class="comments-title">
+            <i class="bi bi-chat-left-text"></i>
+            Comentários ({{ comments().length }})
+          </h4>
+
+          <!-- Comment Form -->
+          @if (isAuthenticated()) {
+            <div class="comment-form">
+              @if (replyingTo()) {
+                <div class="alert alert-info d-flex justify-content-between align-items-center">
+                  <span>Respondendo comentário</span>
+                  <button class="btn btn-sm btn-link" (click)="cancelReply()">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                  </button>
+                </div>
+              }
+
+              <form [formGroup]="commentForm" (ngSubmit)="submitComment()">
+                <div class="mb-3">
+                  <textarea 
+                    class="form-control" 
+                    formControlName="content"
+                    rows="3"
+                    placeholder="Escreva seu comentário..."
+                    [class.is-invalid]="commentForm.get('content')?.invalid && commentForm.get('content')?.touched"></textarea>
+                  @if (commentForm.get('content')?.invalid && commentForm.get('content')?.touched) {
+                    <div class="invalid-feedback">
+                      Comentário é obrigatório.
+                    </div>
+                  }
+                </div>
+                <button type="submit" class="btn btn-primary" [disabled]="!commentForm.valid">
+                  <i class="bi bi-send"></i>
+                  {{ replyingTo() ? 'Responder' : 'Comentar' }}
+                </button>
+              </form>
+            </div>
+          } @else {
+            <div class="alert alert-warning">
+              <i class="bi bi-info-circle"></i>
+              Faça login para comentar.
+            </div>
+          }
+
+          <!-- Comments List -->
+          @if (loadingComments()) {
+            <div class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Carregando comentários...</span>
+              </div>
+            </div>
+          } @else {
+            <div class="comments-list">
+              @for (comment of getTopLevelComments(); track comment.id) {
+                <div class="comment">
+                  <div class="comment-header">
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="comment-avatar">
+                        @if (comment.user?.profileImageUrl) {
+                          <img [src]="comment.user!.profileImageUrl" [alt]="comment.user!.userName" />
+                        } @else {
+                          <i class="bi bi-person-circle"></i>
+                        }
+                      </div>
+                      <div>
+                        <strong>{{ comment.user?.name || comment.user?.userName }}</strong>
+                        <small class="text-muted ms-2">{{ formatDate(comment.creationTime) }}</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="comment-content">
+                    <p>{{ comment.content }}</p>
+                  </div>
+
+                  <div class="comment-actions">
+                    @if (isAuthenticated()) {
+                      <button class="btn btn-sm btn-link" (click)="replyToComment(comment.id)">
+                        <i class="bi bi-reply"></i> Responder
+                      </button>
+                    }
+                    @if (comment.userId === configState.getOne('currentUser')?.id) {
+                      <button class="btn btn-sm btn-link text-danger" (click)="deleteComment(comment.id)">
+                        <i class="bi bi-trash"></i> Excluir
+                      </button>
+                    }
+                  </div>
+
+                  <!-- Replies -->
+                  @if (getReplies(comment.id).length > 0) {
+                    <div class="comment-replies">
+                      @for (reply of getReplies(comment.id); track reply.id) {
+                        <div class="comment reply">
+                          <div class="comment-header">
+                            <div class="d-flex align-items-center gap-3">
+                              <div class="comment-avatar">
+                                @if (reply.user?.profileImageUrl) {
+                                  <img [src]="reply.user!.profileImageUrl" [alt]="reply.user!.userName" />
+                                } @else {
+                                  <i class="bi bi-person-circle"></i>
+                                }
+                              </div>
+                              <div>
+                                <strong>{{ reply.user?.name || reply.user?.userName }}</strong>
+                                <small class="text-muted ms-2">{{ formatDate(reply.creationTime) }}</small>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="comment-content">
+                            <p>{{ reply.content }}</p>
+                          </div>
+
+                          @if (reply.userId === configState.getOne('currentUser')?.id) {
+                            <div class="comment-actions">
+                              <button class="btn btn-sm btn-link text-danger" (click)="deleteComment(reply.id)">
+                                <i class="bi bi-trash"></i> Excluir
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="alert alert-danger">
+      <i class="bi bi-exclamation-circle"></i>
+      Post não encontrado.
+    </div>
+  }
+</div>

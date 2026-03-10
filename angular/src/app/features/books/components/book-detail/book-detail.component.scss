@@ -1,0 +1,57 @@
+.book-cover-large {
+  width: 100%;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: #f8f9fa;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.book-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+
+  i {
+    font-size: 6rem;
+    opacity: 0.7;
+  }
+}
+
+.rating-stars {
+  display: flex;
+  gap: 8px;
+  font-size: 1.5rem;
+
+  i {
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &.active {
+      color: #ffc107;
+    }
+
+    &:hover {
+      color: #ffb300;
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 768px) {
+  .book-cover-large {
+    max-width: 300px;
+    margin: 0 auto;
+  }
+}

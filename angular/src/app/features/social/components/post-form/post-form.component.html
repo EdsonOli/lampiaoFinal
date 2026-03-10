@@ -1,0 +1,194 @@
+<div class="container py-4">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+          <i class="bi" [class.bi-pencil-square]="isEditMode()" [class.bi-plus-circle]="!isEditMode()"></i>
+          {{ isEditMode() ? 'Editar Resenha' : 'Nova Resenha' }}
+        </h1>
+        
+        <button class="btn btn-outline-secondary" (click)="cancel()">
+          <i class="bi bi-x-circle"></i> Cancelar
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+        </div>
+      } @else {
+        <!-- Form Card -->
+        <div class="card shadow-sm">
+          <div class="card-body p-4">
+            <form [formGroup]="postForm" (ngSubmit)="onSubmit()">
+              <!-- Título -->
+              <div class="mb-4">
+                <label for="title" class="form-label fw-bold">
+                  Título da Resenha <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  id="title"
+                  formControlName="title"
+                  placeholder="Ex: Uma jornada emocionante..."
+                  [class.is-invalid]="title?.invalid && title?.touched">
+                @if (title?.invalid && title?.touched) {
+                  <div class="invalid-feedback">
+                    @if (title?.errors?.['required']) {
+                      Título é obrigatório.
+                    }
+                    @if (title?.errors?.['minlength']) {
+                      Título deve ter no mínimo 5 caracteres.
+                    }
+                    @if (title?.errors?.['maxlength']) {
+                      Título deve ter no máximo 200 caracteres.
+                    }
+                  </div>
+                }
+                <small class="text-muted">
+                  {{ title?.value?.length || 0 }}/200 caracteres
+                </small>
+              </div>
+
+              <!-- Livro (opcional) -->
+              <div class="mb-4">
+                <label for="bookId" class="form-label fw-bold">
+                  Livro (opcional)
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="bi bi-book"></i>
+                  </span>
+                  <input 
+                    type="text" 
+                    class="form-control"
+                    placeholder="Buscar livro..."
+                    (input)="searchBooks($event)">
+                </div>
+                
+                @if (loadingBooks()) {
+                  <div class="text-center py-2">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                      <span class="visually-hidden">Carregando livros...</span>
+                    </div>
+                  </div>
+                }
+
+                <select 
+                  class="form-select mt-2" 
+                  id="bookId"
+                  formControlName="bookId">
+                  <option [value]="null">Nenhum livro selecionado</option>
+                  @for (book of books(); track book.id) {
+                    <option [value]="book.id">
+                      {{ book.name }}{{ book.author ? ' - ' + book.author : '' }}
+                    </option>
+                  }
+                </select>
+                <small class="text-muted">
+                  Vincule sua resenha a um livro específico
+                </small>
+              </div>
+
+              <!-- Conteúdo -->
+              <div class="mb-4">
+                <label for="content" class="form-label fw-bold">
+                  Conteúdo <span class="text-danger">*</span>
+                </label>
+                <textarea 
+                  class="form-control" 
+                  id="content"
+                  formControlName="content"
+                  rows="12"
+                  placeholder="Escreva sua resenha aqui... Compartilhe suas opiniões, sentimentos e análises sobre o livro."
+                  [class.is-invalid]="content?.invalid && content?.touched"></textarea>
+                @if (content?.invalid && content?.touched) {
+                  <div class="invalid-feedback">
+                    @if (content?.errors?.['required']) {
+                      Conteúdo é obrigatório.
+                    }
+                    @if (content?.errors?.['minlength']) {
+                      Conteúdo deve ter no mínimo 10 caracteres.
+                    }
+                    @if (content?.errors?.['maxlength']) {
+                      Conteúdo deve ter no máximo 5000 caracteres.
+                    }
+                  </div>
+                }
+                <small class="text-muted">
+                  {{ content?.value?.length || 0 }}/5000 caracteres
+                </small>
+              </div>
+
+              <!-- Visibilidade -->
+              <div class="mb-4">
+                <label class="form-label fw-bold">Visibilidade</label>
+                <div class="form-check form-switch">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="isPublic"
+                    formControlName="isPublic">
+                  <label class="form-check-label" for="isPublic">
+                    @if (postForm.get('isPublic')?.value) {
+                      <i class="bi bi-unlock-fill text-success"></i> Público
+                    } @else {
+                      <i class="bi bi-lock-fill text-secondary"></i> Privado
+                    }
+                  </label>
+                </div>
+                <small class="text-muted">
+                  Posts públicos podem ser visualizados por todos os usuários
+                </small>
+              </div>
+
+              <!-- Actions -->
+              <div class="d-flex gap-3">
+                <button 
+                  type="submit" 
+                  class="btn btn-primary"
+                  [disabled]="!postForm.valid || submitting()">
+                  @if (submitting()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status">
+                      <span class="visually-hidden">Salvando...</span>
+                    </span>
+                  }
+                  <i class="bi" [class.bi-check-circle]="!submitting()" [class.bi-hourglass]="submitting()"></i>
+                  {{ isEditMode() ? 'Salvar Alterações' : 'Publicar Resenha' }}
+                </button>
+
+                <button 
+                  type="button" 
+                  class="btn btn-outline-secondary"
+                  (click)="cancel()"
+                  [disabled]="submitting()">
+                  <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="card mt-4 border-info">
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="bi bi-lightbulb text-warning"></i> Dicas para uma boa resenha
+            </h5>
+            <ul class="mb-0">
+              <li>Seja honesto sobre suas opiniões</li>
+              <li>Evite spoilers importantes sem avisar</li>
+              <li>Contextualize suas críticas</li>
+              <li>Mencione aspectos positivos e negativos</li>
+              <li>Seja respeitoso com opiniões divergentes</li>
+            </ul>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

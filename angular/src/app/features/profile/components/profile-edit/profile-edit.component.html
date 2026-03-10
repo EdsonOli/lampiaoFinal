@@ -1,0 +1,222 @@
+<div class="container py-4">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+          <i class="bi bi-person-gear"></i> Editar Perfil
+        </h1>
+        
+        <button class="btn btn-outline-secondary" (click)="cancel()">
+          <i class="bi bi-x-circle"></i> Cancelar
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+        </div>
+      } @else {
+        <!-- Form Card -->
+        <div class="card shadow-sm">
+          <div class="card-body p-4">
+            <form [formGroup]="profileForm" (ngSubmit)="onSubmit()">
+              <!-- Profile Image -->
+              <div class="mb-4 text-center">
+                <label class="form-label fw-bold d-block">Foto de Perfil</label>
+                
+                <div class="profile-image-container">
+                  @if (previewImage()) {
+                    <img [src]="previewImage()!" alt="Preview" class="profile-preview" />
+                  } @else {
+                    <div class="profile-preview-placeholder">
+                      <i class="bi bi-person-fill"></i>
+                    </div>
+                  }
+                </div>
+
+                <div class="mt-3">
+                  <input 
+                    type="file" 
+                    #fileInput
+                    class="d-none"
+                    accept="image/*"
+                    (change)="onFileSelected($event)">
+                  
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-primary me-2"
+                    (click)="fileInput.click()">
+                    <i class="bi bi-upload"></i> Escolher Imagem
+                  </button>
+
+                  @if (previewImage()) {
+                    <button 
+                      type="button" 
+                      class="btn btn-sm btn-outline-danger"
+                      (click)="removeImage()">
+                      <i class="bi bi-trash"></i> Remover
+                    </button>
+                  }
+                </div>
+
+                <small class="text-muted d-block mt-2">
+                  Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 2MB
+                </small>
+              </div>
+
+              <hr class="my-4">
+
+              <!-- Nome -->
+              <div class="mb-4">
+                <label for="name" class="form-label fw-bold">
+                  Nome Completo <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  id="name"
+                  formControlName="name"
+                  placeholder="Ex: João da Silva"
+                  [class.is-invalid]="name?.invalid && name?.touched">
+                @if (name?.invalid && name?.touched) {
+                  <div class="invalid-feedback">
+                    @if (name?.errors?.['required']) {
+                      Nome é obrigatório.
+                    }
+                    @if (name?.errors?.['minlength']) {
+                      Nome deve ter no mínimo 3 caracteres.
+                    }
+                    @if (name?.errors?.['maxlength']) {
+                      Nome deve ter no máximo 100 caracteres.
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Username -->
+              <div class="mb-4">
+                <label for="userName" class="form-label fw-bold">
+                  Nome de Usuário <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">&#64;</span>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="userName"
+                    formControlName="userName"
+                    placeholder="usuario"
+                    [class.is-invalid]="userName?.invalid && userName?.touched">
+                </div>
+                @if (userName?.invalid && userName?.touched) {
+                  <div class="invalid-feedback d-block">
+                    @if (userName?.errors?.['required']) {
+                      Nome de usuário é obrigatório.
+                    }
+                    @if (userName?.errors?.['minlength']) {
+                      Nome de usuário deve ter no mínimo 3 caracteres.
+                    }
+                    @if (userName?.errors?.['maxlength']) {
+                      Nome de usuário deve ter no máximo 50 caracteres.
+                    }
+                  </div>
+                }
+                <small class="text-muted">
+                  Esse será seu identificador único na plataforma
+                </small>
+              </div>
+
+              <!-- Email -->
+              <div class="mb-4">
+                <label for="email" class="form-label fw-bold">
+                  E-mail <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="email" 
+                  class="form-control" 
+                  id="email"
+                  formControlName="email"
+                  placeholder="seu@email.com"
+                  [class.is-invalid]="email?.invalid && email?.touched">
+                @if (email?.invalid && email?.touched) {
+                  <div class="invalid-feedback">
+                    @if (email?.errors?.['required']) {
+                      E-mail é obrigatório.
+                    }
+                    @if (email?.errors?.['email']) {
+                      E-mail inválido.
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Bio -->
+              <div class="mb-4">
+                <label for="bio" class="form-label fw-bold">
+                  Biografia
+                </label>
+                <textarea 
+                  class="form-control" 
+                  id="bio"
+                  formControlName="bio"
+                  rows="4"
+                  placeholder="Conte um pouco sobre você e suas preferências literárias..."
+                  [class.is-invalid]="bio?.invalid && bio?.touched"></textarea>
+                @if (bio?.invalid && bio?.touched) {
+                  <div class="invalid-feedback">
+                    @if (bio?.errors?.['maxlength']) {
+                      Biografia deve ter no máximo 500 caracteres.
+                    }
+                  </div>
+                }
+                <small class="text-muted">
+                  {{ bio?.value?.length || 0 }}/500 caracteres
+                </small>
+              </div>
+
+              <!-- Actions -->
+              <div class="d-flex gap-3">
+                <button 
+                  type="submit" 
+                  class="btn btn-primary"
+                  [disabled]="!profileForm.valid || submitting()">
+                  @if (submitting()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status">
+                      <span class="visually-hidden">Salvando...</span>
+                    </span>
+                  }
+                  <i class="bi" [class.bi-check-circle]="!submitting()" [class.bi-hourglass]="submitting()"></i>
+                  Salvar Alterações
+                </button>
+
+                <button 
+                  type="button" 
+                  class="btn btn-outline-secondary"
+                  (click)="cancel()"
+                  [disabled]="submitting()">
+                  <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Security Card -->
+        <div class="card mt-4 border-warning">
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="bi bi-shield-lock text-warning"></i> Segurança
+            </h5>
+            <p class="mb-3">Gerencia suas configurações de segurança</p>
+            <button class="btn btn-outline-warning">
+              <i class="bi bi-key"></i> Alterar Senha
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

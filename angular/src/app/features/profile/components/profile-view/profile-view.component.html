@@ -1,0 +1,222 @@
+<div class="container py-4">
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  } @else {
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="row align-items-center">
+        <div class="col-md-auto text-center text-md-start mb-3 mb-md-0">
+          <div class="profile-avatar">
+            @if (profile()?.profileImageUrl) {
+              <img [src]="profile()!.profileImageUrl" [alt]="profile()!.userName" />
+            } @else {
+              <div class="avatar-placeholder">
+                <i class="bi bi-person-fill"></i>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="col-md">
+          <h1 class="profile-name">{{ profile()?.name || 'Leitor Lampião' }}</h1>
+          <p class="profile-username text-muted">&#64;{{ profile()?.userName || 'username' }}</p>
+          
+          @if (profile()?.bio) {
+            <p class="profile-bio">{{ profile()!.bio }}</p>
+          }
+
+          @if (isOwnProfile()) {
+            <div class="mt-3">
+              <a routerLink="/profile/edit" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Editar Perfil
+              </a>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-4">
+      <!-- Left Column: Stats -->
+      <div class="col-lg-4 mb-4">
+        <!-- Reading Stats -->
+        @if (libraryStats()) {
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="bi bi-bar-chart"></i> Estatísticas de Leitura
+              </h5>
+
+              <div class="stat-item">
+                <div class="stat-label">Total de Livros</div>
+                <div class="stat-value">{{ libraryStats()!.totalBooks }}</div>
+              </div>
+
+              <div class="stat-item">
+                <div class="stat-label">Livros Lidos</div>
+                <div class="stat-value text-success">{{ libraryStats()!.booksRead }}</div>
+              </div>
+
+              <div class="stat-item">
+                <div class="stat-label">Lendo Agora</div>
+                <div class="stat-value text-info">{{ libraryStats()!.booksReading }}</div>
+              </div>
+
+              <div class="stat-item">
+                <div class="stat-label">Quero Ler</div>
+                <div class="stat-value text-warning">{{ libraryStats()!.booksToRead }}</div>
+              </div>
+
+              <hr>
+
+              <div class="progress-section">
+                <div class="d-flex justify-content-between mb-2">
+                  <span class="text-muted">Progresso</span>
+                  <span class="fw-bold">{{ readingProgress }}%</span>
+                </div>
+                <div class="progress">
+                  <div 
+                    class="progress-bar bg-success" 
+                    role="progressbar" 
+                    [style.width.%]="readingProgress">
+                  </div>
+                </div>
+              </div>
+
+              @if (libraryStats()!.averageRating > 0) {
+                <hr>
+                <div class="stat-item">
+                  <div class="stat-label">Avaliação Média</div>
+                  <div class="stat-value">
+                    <i class="bi bi-star-fill text-warning"></i>
+                    {{ libraryStats()!.averageRating.toFixed(1) }}
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Quick Actions -->
+        @if (isOwnProfile()) {
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">
+                <i class="bi bi-lightning"></i> Ações Rápidas
+              </h5>
+              <div class="d-grid gap-2">
+                <a routerLink="/library" class="btn btn-outline-primary">
+                  <i class="bi bi-bookmark"></i> Minha Biblioteca
+                </a>
+                <a routerLink="/social/posts/new" class="btn btn-outline-success">
+                  <i class="bi bi-plus-circle"></i> Nova Resenha
+                </a>
+                <a routerLink="/books" class="btn btn-outline-info">
+                  <i class="bi bi-book"></i> Explorar Livros
+                </a>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Right Column: Activity -->
+      <div class="col-lg-8">
+        <!-- Recent Posts -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-chat-left-text"></i> Resenhas Recentes
+              </h5>
+              <a [routerLink]="isOwnProfile() ? ['/social'] : ['/social/user', userId]" class="btn btn-sm btn-link">
+                Ver todas <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+
+            @if (recentPosts().length > 0) {
+              <div class="posts-list">
+                @for (post of recentPosts(); track post.id) {
+                  <div class="post-item">
+                    <div class="d-flex justify-content-between">
+                      <h6 class="mb-1">
+                        <a [routerLink]="['/social/posts', post.id]">{{ post.title }}</a>
+                      </h6>
+                      @if (!post.isPublic) {
+                        <span class="badge bg-secondary">
+                          <i class="bi bi-lock-fill"></i>
+                        </span>
+                      }
+                    </div>
+                    <p class="text-muted small mb-2">{{ formatDate(post.creationTime) }}</p>
+                    <p class="post-excerpt">{{ post.content }}</p>
+                    <div class="post-stats">
+                      <span class="text-muted">
+                        <i class="bi bi-heart"></i> {{ post.likesCount }}
+                      </span>
+                      <span class="text-muted ms-3">
+                        <i class="bi bi-chat"></i> {{ post.commentsCount }}
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-muted text-center py-4">
+                Nenhuma resenha publicada ainda.
+              </p>
+            }
+          </div>
+        </div>
+
+        <!-- Recent Books -->
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-book"></i> Livros Recentes
+              </h5>
+              <a [routerLink]="isOwnProfile() ? ['/library'] : ['/library/user', userId]" class="btn btn-sm btn-link">
+                Ver biblioteca <i class="bi bi-arrow-right"></i>
+              </a>
+            </div>
+
+            @if (recentBooks().length > 0) {
+              <div class="row g-3">
+                @for (book of recentBooks(); track book.id) {
+                  <div class="col-6 col-md-3">
+                    <div class="book-card">
+                      <a [routerLink]="['/books', book.bookId]">
+                        @if (book.book?.imageUrl) {
+                          <img 
+                            [src]="book.book!.imageUrl" 
+                            [alt]="book.book!.name"
+                            class="book-cover" />
+                        } @else {
+                          <div class="book-cover-placeholder">
+                            <i class="bi bi-book"></i>
+                          </div>
+                        }
+                      </a>
+                      <span class="status-badge" [class]="'badge-' + book.status.toLowerCase()">
+                        {{ book.status === 'Read' ? 'Lido' : book.status === 'Reading' ? 'Lendo' : 'Quero Ler' }}
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="text-muted text-center py-4">
+                Nenhum livro na biblioteca ainda.
+              </p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

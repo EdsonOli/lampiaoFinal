@@ -1,0 +1,141 @@
+.stat-card {
+  padding: 24px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: transform 0.2s;
+  height: 100%;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  .stat-icon {
+    font-size: 3rem;
+    opacity: 0.9;
+  }
+
+  .stat-content {
+    h3 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0;
+      line-height: 1;
+    }
+
+    p {
+      margin-bottom: 0;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+  }
+
+  &.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  &.success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+  }
+
+  &.info {
+    background: linear-gradient(135deg, #17a2b8 0%, #0dcaf0 100%);
+    color: white;
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    color: white;
+  }
+}
+
+.status-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .status-bar {
+    height: 12px;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+    
+    &.read {
+      background: linear-gradient(90deg, #28a745, #20c997);
+    }
+    
+    &.reading {
+      background: linear-gradient(90deg, #17a2b8, #0dcaf0);
+    }
+    
+    &.want-to-read {
+      background: linear-gradient(90deg, #ffc107, #ff9800);
+    }
+  }
+
+  .status-label {
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.info-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f8f9fa;
+
+  .info-icon {
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .info-content {
+    flex-grow: 1;
+
+    h6 {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    p {
+      font-size: 1.1rem;
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 768px) {
+  .stat-card {
+    .stat-icon {
+      font-size: 2rem;
+    }
+
+    .stat-content h3 {
+      font-size: 2rem;
+    }
+  }
+}

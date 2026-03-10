@@ -1,0 +1,202 @@
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-bar-chart"></i> Estatísticas de Leitura
+    </h1>
+    <a routerLink="/library" class="btn btn-outline-primary">
+      <i class="bi bi-arrow-left"></i> Voltar para Biblioteca
+    </a>
+  </div>
+
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  } @else if (statistics()) {
+    <!-- Cards de Estatísticas Principais -->
+    <div class="row g-4 mb-4">
+      <!-- Total de Livros -->
+      <div class="col-md-3">
+        <div class="stat-card primary">
+          <div class="stat-icon">
+            <i class="bi bi-book-fill"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ statistics()!.totalBooks }}</h3>
+            <p>Livros na Biblioteca</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Livros Lidos -->
+      <div class="col-md-3">
+        <div class="stat-card success">
+          <div class="stat-icon">
+            <i class="bi bi-check-circle-fill"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ statistics()!.booksRead }}</h3>
+            <p>Livros Lidos</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lendo Atualmente -->
+      <div class="col-md-3">
+        <div class="stat-card info">
+          <div class="stat-icon">
+            <i class="bi bi-book-half"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ statistics()!.booksReading }}</h3>
+            <p>Lendo Agora</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quero Ler -->
+      <div class="col-md-3">
+        <div class="stat-card warning">
+          <div class="stat-icon">
+            <i class="bi bi-bookmark-fill"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ statistics()!.booksWantToRead }}</h3>
+            <p>Quero Ler</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progresso e Detalhes -->
+    <div class="row g-4 mb-4">
+      <!-- Progresso de Leitura -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title mb-4">
+              <i class="bi bi-graph-up"></i> Progresso de Leitura
+            </h5>
+            
+            <!-- Barra de Progresso -->
+            <div class="mb-4">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="fw-bold">Livros Concluídos</span>
+                <span class="text-muted">{{ readingProgress }}%</span>
+              </div>
+              <div class="progress" style="height: 25px;">
+                <div 
+                  class="progress-bar bg-success" 
+                  role="progressbar" 
+                  [style.width.%]="readingProgress"
+                  [attr.aria-valuenow]="readingProgress"
+                  aria-valuemin="0" 
+                  aria-valuemax="100">
+                  {{ statistics()!.booksRead }} de {{ statistics()!.totalBooks }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Distribuição de Status -->
+            <div class="status-breakdown">
+              <div class="status-item">
+                <div class="status-bar read" [style.width.%]="readingProgress"></div>
+                <span class="status-label">
+                  <span class="badge bg-success">Lido</span>
+                  {{ statistics()!.booksRead }}
+                </span>
+              </div>
+              <div class="status-item">
+                <div class="status-bar reading" [style.width.%]="currentlyReadingPercentage"></div>
+                <span class="status-label">
+                  <span class="badge bg-info">Lendo</span>
+                  {{ statistics()!.booksReading }}
+                </span>
+              </div>
+              <div class="status-item">
+                <div class="status-bar want-to-read" [style.width.%]="100 - readingProgress - currentlyReadingPercentage"></div>
+                <span class="status-label">
+                  <span class="badge bg-warning">Quero Ler</span>
+                  {{ statistics()!.booksWantToRead }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Informações Adicionais -->
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title mb-4">
+              <i class="bi bi-info-circle"></i> Informações Adicionais
+            </h5>
+
+            <div class="info-list">
+              <!-- Avaliação Média -->
+              <div class="info-item">
+                <div class="info-icon">
+                  <i class="bi bi-star-fill text-warning"></i>
+                </div>
+                <div class="info-content">
+                  <h6>Avaliação Média</h6>
+                  <p class="mb-0">
+                    <strong>{{ statistics()!.averageRating | number:'1.1-1' }}</strong>
+                    <span class="text-muted ms-2">de 5 estrelas</span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Total de Páginas Lidas -->
+              <div class="info-item">
+                <div class="info-icon">
+                  <i class="bi bi-file-earmark-text text-primary"></i>
+                </div>
+                <div class="info-content">
+                  <h6>Total de Páginas Lidas</h6>
+                  <p class="mb-0">
+                    <strong>{{ statistics()!.totalPagesRead | number }}</strong>
+                    <span class="text-muted ms-2">páginas</span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Gênero Favorito -->
+              @if (statistics()!.favoriteGenre) {
+                <div class="info-item">
+                  <div class="info-icon">
+                    <i class="bi bi-heart-fill text-danger"></i>
+                  </div>
+                  <div class="info-content">
+                    <h6>Gênero Favorito</h6>
+                    <p class="mb-0">
+                      <span class="badge bg-primary">{{ statistics()!.favoriteGenre }}</span>
+                    </p>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta de Leitura (Futuro) -->
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-trophy text-warning" style="font-size: 3rem;"></i>
+        <h5 class="mt-3">Metas de Leitura</h5>
+        <p class="text-muted mb-3">
+          Defina e acompanhe suas metas de leitura anuais
+        </p>
+        <button class="btn btn-primary" disabled>
+          <i class="bi bi-plus-circle"></i> Em Breve
+        </button>
+      </div>
+    </div>
+  }
+</div>

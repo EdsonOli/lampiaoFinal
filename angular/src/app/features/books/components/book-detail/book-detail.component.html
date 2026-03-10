@@ -1,0 +1,169 @@
+<div class="container py-4">
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  } @else if (book()) {
+    <div class="row">
+      <!-- Coluna da Capa -->
+      <div class="col-md-4 col-lg-3">
+        <div class="book-cover-large mb-3">
+          @if (book()!.imageUrl) {
+            <img [src]="book()!.imageUrl" [alt]="book()!.name" />
+          } @else {
+            <div class="book-cover-placeholder">
+              <i class="bi bi-book"></i>
+            </div>
+          }
+        </div>
+
+        <!-- Ações com a Biblioteca -->
+        @if (isAuthenticated()) {
+          <div class="card mb-3">
+            <div class="card-body">
+              @if (!userBook()) {
+                <div class="d-grid gap-2">
+                  <button class="btn btn-primary" (click)="addToLibrary(ReadingStatus.WantToRead)">
+                    <i class="bi bi-bookmark-plus"></i> Adicionar à Biblioteca
+                  </button>
+                </div>
+              } @else {
+                <!-- Status de Leitura -->
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Status</label>
+                  <select 
+                    class="form-select"
+                    [value]="userBook()!.readingStatus"
+                    (change)="updateStatus(+$any($event.target).value)">
+                    <option [value]="ReadingStatus.WantToRead">{{ ReadingStatusLabels[ReadingStatus.WantToRead] }}</option>
+                    <option [value]="ReadingStatus.Reading">{{ ReadingStatusLabels[ReadingStatus.Reading] }}</option>
+                    <option [value]="ReadingStatus.Read">{{ ReadingStatusLabels[ReadingStatus.Read] }}</option>
+                  </select>
+                </div>
+
+                <!-- Avaliação -->
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Sua Avaliação</label>
+                  <div class="rating-stars">
+                    @for (star of [1, 2, 3, 4, 5]; track star) {
+                      <i 
+                        class="bi bi-star-fill"
+                        [class.active]="userBook()!.rating && userBook()!.rating! >= star"
+                        (click)="rateBook(star)">
+                      </i>
+                    }
+                  </div>
+                </div>
+
+                <!-- Favorito -->
+                <button 
+                  class="btn btn-outline-danger w-100 mb-2"
+                  (click)="toggleFavorite()">
+                  <i class="bi" [class.bi-heart]="!userBook()!.isFavorite" [class.bi-heart-fill]="userBook()!.isFavorite"></i>
+                  {{ userBook()!.isFavorite ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos' }}
+                </button>
+
+                <button class="btn btn-outline-secondary w-100" (click)="removeFromLibrary()">
+                  <i class="bi bi-trash"></i> Remover da Biblioteca
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Estatísticas -->
+        @if (statistics()) {
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Estatísticas</h6>
+              <ul class="list-unstyled mb-0">
+                <li class="mb-2">
+                  <i class="bi bi-star-fill text-warning"></i>
+                  <strong>{{ statistics()!.averageRating | number:'1.1-1' }}</strong>
+                  <small class="text-muted">({{ statistics()!.totalRatings }} avaliações)</small>
+                </li>
+                <li class="mb-2">
+                  <i class="bi bi-heart-fill text-danger"></i>
+                  <strong>{{ statistics()!.totalFavorites }}</strong>
+                  <small class="text-muted">favoritos</small>
+                </li>
+                <li>
+                  <i class="bi bi-book-half text-primary"></i>
+                  <strong>{{ statistics()!.totalInLibraries }}</strong>
+                  <small class="text-muted">bibliotecas</small>
+                </li>
+              </ul>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Coluna de Informações -->
+      <div class="col-md-8 col-lg-9">
+        <div class="mb-4">
+          <h1 class="h2 mb-2">{{ book()!.name }}</h1>
+          @if (book()!.author) {
+            <p class="text-muted lead mb-0">por {{ book()!.author }}</p>
+          }
+        </div>
+
+        <!-- Metadados -->
+        <div class="row g-3 mb-4">
+          @if (book()!.isbn) {
+            <div class="col-auto">
+              <span class="badge bg-light text-dark">
+                <i class="bi bi-upc"></i> ISBN: {{ book()!.isbn }}
+              </span>
+            </div>
+          }
+          @if (book()!.publishingCompany) {
+            <div class="col-auto">
+              <span class="badge bg-light text-dark">
+                <i class="bi bi-building"></i> {{ book()!.publishingCompany }}
+              </span>
+            </div>
+          }
+          @if (book()!.yearPublication) {
+            <div class="col-auto">
+              <span class="badge bg-light text-dark">
+                <i class="bi bi-calendar"></i> {{ book()!.yearPublication }}
+              </span>
+            </div>
+          }
+          @if (book()!.pageCount) {
+            <div class="col-auto">
+              <span class="badge bg-light text-dark">
+                <i class="bi bi-file-earmark-text"></i> {{ book()!.pageCount }} páginas
+              </span>
+            </div>
+          }
+          @if (book()!.genre) {
+            <div class="col-auto">
+              <span class="badge bg-primary">
+                <i class="bi bi-tag"></i> {{ book()!.genre }}
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- Sinopse -->
+        @if (book()!.synopsis) {
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Sinopse</h5>
+              <p class="card-text">{{ book()!.synopsis }}</p>
+            </div>
+          </div>
+        }
+
+        <!-- Seção de Posts/Resenhas (futuro) -->
+        <div class="mt-4">
+          <h5>Resenhas e Comentários</h5>
+          <p class="text-muted">Em breve...</p>
+        </div>
+      </div>
+    </div>
+  }
+</div>

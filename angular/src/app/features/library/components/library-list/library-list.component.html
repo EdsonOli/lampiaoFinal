@@ -1,0 +1,169 @@
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-bookshelf"></i> Minha Biblioteca
+    </h1>
+    
+    <a routerLink="/library/statistics" class="btn btn-outline-primary">
+      <i class="bi bi-bar-chart"></i> Estatísticas
+    </a>
+  </div>
+
+  <!-- Estatísticas Rápidas -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="stat-card want-to-read">
+        <div class="stat-icon">
+          <i class="bi bi-bookmark"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ booksWantToRead }}</h3>
+          <p>Quero Ler</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-card reading">
+        <div class="stat-icon">
+          <i class="bi bi-book-half"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ booksReading }}</h3>
+          <p>Lendo</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-card read">
+        <div class="stat-icon">
+          <i class="bi bi-check-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ booksRead }}</h3>
+          <p>Lidos</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="d-flex gap-2 mb-4 flex-wrap">
+    <button 
+      class="btn btn-sm"
+      [class.btn-primary]="selectedStatus() === 'all'"
+      [class.btn-outline-secondary]="selectedStatus() !== 'all'"
+      (click)="filterByStatus('all')">
+      Todos ({{ totalCount() }})
+    </button>
+    <button 
+      class="btn btn-sm"
+      [class.btn-warning]="selectedStatus() === ReadingStatus.WantToRead"
+      [class.btn-outline-secondary]="selectedStatus() !== ReadingStatus.WantToRead"
+      (click)="filterByStatus(ReadingStatus.WantToRead)">
+      Quero Ler ({{ booksWantToRead }})
+    </button>
+    <button 
+      class="btn btn-sm"
+      [class.btn-info]="selectedStatus() === ReadingStatus.Reading"
+      [class.btn-outline-secondary]="selectedStatus() !== ReadingStatus.Reading"
+      (click)="filterByStatus(ReadingStatus.Reading)">
+      Lendo ({{ booksReading }})
+    </button>
+    <button 
+      class="btn btn-sm"
+      [class.btn-success]="selectedStatus() === ReadingStatus.Read"
+      [class.btn-outline-secondary]="selectedStatus() !== ReadingStatus.Read"
+      (click)="filterByStatus(ReadingStatus.Read)">
+      Lidos ({{ booksRead }})
+    </button>
+    <div class="ms-auto">
+      <button 
+        class="btn btn-sm"
+        [class.btn-danger]="showFavoritesOnly()"
+        [class.btn-outline-danger]="!showFavoritesOnly()"
+        (click)="toggleFavoritesFilter()">
+        <i class="bi bi-heart-fill"></i> Favoritos
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  }
+
+  <!-- Lista de Livros -->
+  @else {
+    @if (userBooks().length > 0) {
+      <div class="row g-4">
+        @for (userBook of userBooks(); track userBook.id) {
+          <div class="col-6 col-md-4 col-lg-3">
+            <div class="library-book-card">
+              <!-- Badges -->
+              <div class="book-badges">
+                <span class="badge" [ngClass]="getStatusBadgeClass(userBook.readingStatus)">
+                  {{ ReadingStatusLabels[userBook.readingStatus] }}
+                </span>
+                @if (userBook.isFavorite) {
+                  <span class="badge bg-danger ms-1">
+                    <i class="bi bi-heart-fill"></i>
+                  </span>
+                }
+              </div>
+
+              <!-- Capa -->
+              <a [routerLink]="['/books', userBook.bookId]" class="book-cover-link">
+                <div class="book-cover">
+                  @if (userBook.book?.imageUrl) {
+                    <img [src]="userBook.book.imageUrl" [alt]="userBook.book!.name" />
+                  } @else {
+                    <div class="book-cover-placeholder">
+                      <i class="bi bi-book"></i>
+                    </div>
+                  }
+                </div>
+              </a>
+
+              <!-- Info -->
+              <div class="book-info">
+                <h6 class="book-title">
+                  <a [routerLink]="['/books', userBook.bookId]">
+                    {{ userBook.book?.name }}
+                  </a>
+                </h6>
+                @if (userBook.book?.author) {
+                  <p class="book-author text-muted">{{ userBook.book.author }}</p>
+                }
+                
+                <!-- Rating -->
+                @if (userBook.rating) {
+                  <div class="rating mt-2">
+                    @for (star of [1, 2, 3, 4, 5]; track star) {
+                      <i 
+                        class="bi bi-star-fill"
+                        [class.active]="userBook.rating! >= star">
+                      </i>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle"></i>
+        <p class="mb-0">Sua biblioteca está vazia.</p>
+        <a routerLink="/books" class="btn btn-primary mt-2">
+          Explorar Livros
+        </a>
+      </div>
+    }
+  }
+</div>

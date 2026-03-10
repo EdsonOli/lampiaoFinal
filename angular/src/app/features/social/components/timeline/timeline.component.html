@@ -1,0 +1,173 @@
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+      <i class="bi bi-chat-left-text"></i> Timeline
+    </h1>
+    
+    @if (isAuthenticated()) {
+      <a routerLink="/social/posts/new" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Nova Resenha
+      </a>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+    </div>
+  }
+
+  <!-- Posts -->
+  @else {
+    @if (posts().length > 0) {
+      <div class="posts-container">
+        @for (post of posts(); track post.id) {
+          <article class="post-card">
+            <!-- Post Header -->
+            <div class="post-header">
+              <div class="d-flex align-items-center gap-3">
+                <!-- Avatar -->
+                <div class="user-avatar">
+                  @if (post.user?.profileImageUrl) {
+                    <img [src]="post.user.profileImageUrl" [alt]="post.user.userName" />
+                  } @else {
+                    <div class="avatar-placeholder">
+                      <i class="bi bi-person-fill"></i>
+                    </div>
+                  }
+                </div>
+
+                <!-- User Info -->
+                <div class="user-info">
+                  <h6 class="mb-0">
+                    <a [routerLink]="['/profile', post.userId]">
+                      {{ post.user?.name || post.user?.userName }}
+                    </a>
+                  </h6>
+                  <small class="text-muted">{{ formatDate(post.creationTime) }}</small>
+                </div>
+              </div>
+
+              <!-- Post Actions (próprio usuário) -->
+              @if (post.userId === configState.getOne('currentUser')?.id) {
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-link text-muted" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <a class="dropdown-item" [routerLink]="['/social/posts', post.id, 'edit']">
+                        <i class="bi bi-pencil"></i> Editar
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <button class="dropdown-item text-danger">
+                        <i class="bi bi-trash"></i> Excluir
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              }
+            </div>
+
+            <!-- Book Info (se vinculado a um livro) -->
+            @if (post.book) {
+              <div class="book-reference">
+                <div class="d-flex align-items-center gap-3">
+                  @if (post.book.imageUrl) {
+                    <img [src]="post.book.imageUrl" [alt]="post.book.name" class="book-thumb" />
+                  }
+                  <div>
+                    <small class="text-muted d-block">Sobre o livro</small>
+                    <a [routerLink]="['/books', post.book.id]" class="fw-bold">
+                      {{ post.book.name }}
+                    </a>
+                    @if (post.book.author) {
+                      <small class="text-muted d-block">por {{ post.book.author }}</small>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Post Content -->
+            <div class="post-content">
+              <h5 class="post-title">
+                <a [routerLink]="['/social/posts', post.id]">{{ post.title }}</a>
+              </h5>
+              <p class="post-text">{{ post.content }}</p>
+            </div>
+
+            <!-- Post Footer (likes, comments) -->
+            <div class="post-footer">
+              <div class="post-stats">
+                <button 
+                  class="btn btn-sm btn-link"
+                  [class.active]="post.isLikedByCurrentUser"
+                  [disabled]="!isAuthenticated()"
+                  (click)="toggleLike(post)">
+                  <i class="bi" [class.bi-heart]="!post.isLikedByCurrentUser" [class.bi-heart-fill]="post.isLikedByCurrentUser"></i>
+                  {{ post.likesCount }}
+                </button>
+
+                <a [routerLink]="['/social/posts', post.id]" class="btn btn-sm btn-link">
+                  <i class="bi bi-chat"></i>
+                  {{ post.commentsCount }}
+                </a>
+              </div>
+
+              @if (!post.isPublic) {
+                <span class="badge bg-secondary">
+                  <i class="bi bi-lock-fill"></i> Privado
+                </span>
+              }
+            </div>
+          </article>
+        }
+      </div>
+
+      <!-- Paginação -->
+      @if (totalPages > 1) {
+        <nav class="mt-4" aria-label="Navegação de páginas">
+          <ul class="pagination justify-content-center">
+            <li class="page-item" [class.disabled]="currentPage === 1">
+              <button class="page-link" (click)="onPageChange(currentPage - 1)">
+                Anterior
+              </button>
+            </li>
+            
+            @for (page of [].constructor(Math.min(totalPages, 5)); track $index; let i = $index) {
+              @let pageNum = i + 1;
+              <li class="page-item" [class.active]="currentPage === pageNum">
+                <button class="page-link" (click)="onPageChange(pageNum)">
+                  {{ pageNum }}
+                </button>
+              </li>
+            }
+            
+            <li class="page-item" [class.disabled]="currentPage === totalPages">
+              <button class="page-link" (click)="onPageChange(currentPage + 1)">
+                Próximo
+              </button>
+            </li>
+          </ul>
+        </nav>
+      }
+    } @else {
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle"></i>
+        <p class="mb-0">Ainda não há posts publicados.</p>
+        @if (isAuthenticated()) {
+          <a routerLink="/social/posts/new" class="btn btn-primary mt-3">
+            <i class="bi bi-plus-circle"></i> Criar Primeira Resenha
+          </a>
+        }
+      </div>
+    }
+  }
+</div>
