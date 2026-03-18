@@ -21,5 +21,11 @@
     "nodemon": "^2.0.7",
     "sequelize": "^6.6.2",
     "slick-carousel": "^1.8.1"
-  }
+  },
+  "main": "app.js",
+  "devDependencies": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

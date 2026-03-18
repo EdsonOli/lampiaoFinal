@@ -1,0 +1,31 @@
+
+{
+  "name": "lampiao-backend",
+  "version": "1.0.0",
+  "description": "Backend for the Lampiao project",
+  "main": "dist/adapters/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/adapters/index.js",
+    "dev": "nodemon",
+    "db:migrate": "npx sequelize-cli db:migrate",
+    "db:seed:all": "npx sequelize-cli db:seed:all",
+    "db:reset": "npx sequelize-cli db:migrate:undo:all && npm run db:migrate && npm run db:seed:all"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.12",
+    "nodemon": "^3.1.0",
+    "sequelize-cli": "^6.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mysql2": "^3.9.7",
+    "sequelize": "^6.37.3",
+    "sqlite3": "^5.1.7"
+  }
+}
