@@ -1,15 +1,21 @@
 
 {
   "development": {
-    "dialect": "sqlite",
-    "storage": "./database.sqlite"
+    "username": "root",
+    "password": "root",
+    "database": "lampiao_api",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
   },
   "test": {
-    "dialect": "sqlite",
-    "storage": ":memory:"
+    "username": "root",
+    "password": "root",
+    "database": "lampiao_api_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
   },
   "production": {
-    "dialect": "sqlite",
-    "storage": "./database.sqlite"
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "mysql"
   }
 }
