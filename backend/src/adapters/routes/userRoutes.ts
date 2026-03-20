@@ -4,7 +4,12 @@ import { GetUserById } from '../../core/usecases/GetUserById';
 import { UpdateUser } from '../../core/usecases/UpdateUser';
 import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate';
 import { SequelizeUserRepository } from '../repositories/SequelizeUserRepository';
+import { getAuthCookieOptions, getRefreshCookieOptions, AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../security/authCookie';
 import { BcryptPasswordHasher } from '../services/BcryptPasswordHasher';
+import { auditLog } from '../services/AuditLogger';
+import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
+import { sanitizeOptionalPlainText, sanitizeProfileImageUrl } from '../validation/sanitizers';
+import { updateMeSchema } from '../validation/schemas';
 
 const router = Router();
 const userRepository = new SequelizeUserRepository();
@@ -48,11 +53,27 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const { name, email, nickname, password, img } = req.body;
-    const user = await updateUser.execute(userId, { name, email, nickname, password, img });
+    const payload = parseOrThrow(updateMeSchema, req.body);
+    const user = await updateUser.execute(userId, {
+      name: sanitizeOptionalPlainText(payload.name),
+      email: payload.email,
+      nickname: sanitizeOptionalPlainText(payload.nickname),
+      password: payload.password,
+      img: sanitizeProfileImageUrl(payload.img),
+    });
+
+    await auditLog('user.updateMe', { userId, updatedFields: Object.keys(payload) });
 
     res.json(sanitizeUser(user));
   } catch (error) {
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
+    if ((error as Error).message === 'Invalid image URL') {
+      return res.status(400).json({ message: 'Invalid image URL' });
+    }
+
     next(error);
   }
 });
@@ -65,6 +86,9 @@ router.delete('/me', authenticate, async (req: AuthenticatedRequest, res: Respon
     }
 
     await deleteUser.execute(userId);
+    res.clearCookie(AUTH_COOKIE_NAME, getAuthCookieOptions());
+    res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieOptions());
+    await auditLog('user.deleteMe', { userId });
     res.status(204).send();
   } catch (error) {
     next(error);

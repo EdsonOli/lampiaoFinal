@@ -5,9 +5,10 @@ export class JwtTokenService implements TokenService {
   private readonly secret: string;
   private readonly expiresIn: jwt.SignOptions['expiresIn'];
 
-  constructor() {
-    this.secret = process.env.JWT_SECRET || 'lampiao-dev-secret';
-    this.expiresIn = (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
+  constructor(options?: { secret?: string; expiresIn?: string | number }) {
+    this.secret = options?.secret || process.env.JWT_SECRET || 'lampiao-dev-secret';
+    const configuredExpiresIn = options?.expiresIn ?? process.env.JWT_EXPIRES_IN ?? '7d';
+    this.expiresIn = configuredExpiresIn as jwt.SignOptions['expiresIn'];
   }
 
   async sign(payload: TokenPayload): Promise<string> {
@@ -24,6 +25,7 @@ export class JwtTokenService implements TokenService {
     return {
       sub: String(decoded.sub),
       email: String(decoded.email),
+      exp: typeof decoded.exp === 'number' ? decoded.exp : undefined,
     };
   }
 }

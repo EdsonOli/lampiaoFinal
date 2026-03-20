@@ -6,6 +6,10 @@ import { CreateBook } from '../../core/usecases/CreateBook';
 import { InMemoryBookRepository } from '../repositories/InMemoryBookRepository';
 import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
 import { authenticate } from '../middlewares/authenticate';
+import { auditLog } from '../services/AuditLogger';
+import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
+import { sanitizeBookImageUrl, sanitizeOptionalPlainText, sanitizePlainText } from '../validation/sanitizers';
+import { createBookSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -51,16 +55,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 // Rota para cadastrar um novo livro (autenticado)
 router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, isbn, publishingCompany, writer, genre, nPages, yearPublication, img, synopsis } = req.body;
-    const nPagesNum = Number(nPages);
-    const yearPublicationNum = Number(yearPublication);
-
-    const normalizeOptional = (value: unknown, maxLength = 255): string | undefined => {
-      if (typeof value !== 'string') return undefined;
-      const trimmed = value.trim();
-      if (!trimmed) return undefined;
-      return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
-    };
+    const payload = parseOrThrow(createBookSchema, req.body);
 
     const normalizeGenre = (value: unknown): string => {
       if (Array.isArray(value)) {
@@ -83,36 +78,29 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       return '';
     };
 
-    const normalizedGenre = normalizeGenre(genre);
-
-    if (!name || !writer || !normalizedGenre || !nPages || !yearPublication || !isbn || !publishingCompany) {
-      return res.status(400).json({ message: 'Missing required fields: name, writer, genre, nPages, yearPublication, isbn, publishingCompany' });
-    }
-
-    if (!Number.isFinite(nPagesNum) || nPagesNum <= 0) {
-      return res.status(400).json({ message: 'nPages must be a positive number' });
-    }
-
-    if (!Number.isFinite(yearPublicationNum) || yearPublicationNum <= 0) {
-      return res.status(400).json({ message: 'yearPublication must be a positive number' });
-    }
+    const normalizedGenre = normalizeGenre(payload.genre);
 
     const book = await createBook.execute({
-      name,
-      isbn,
-      publishingCompany,
-      writer,
+      name: sanitizePlainText(payload.name),
+      isbn: sanitizePlainText(payload.isbn),
+      publishingCompany: sanitizePlainText(payload.publishingCompany),
+      writer: sanitizePlainText(payload.writer),
       genre: normalizedGenre,
-      nPages: nPagesNum,
-      yearPublication: yearPublicationNum,
-      // Current DB schema uses VARCHAR for optional fields; truncate to prevent SQL errors.
-      img: normalizeOptional(img),
-      synopsis: normalizeOptional(synopsis),
+      nPages: payload.nPages,
+      yearPublication: payload.yearPublication,
+      img: sanitizeBookImageUrl(payload.img),
+      synopsis: sanitizeOptionalPlainText(payload.synopsis),
     });
+
+    await auditLog('book.create', { bookId: book.id, isbn: book.isbn });
 
     res.status(201).json(book);
   } catch (error) {
     const err = error as { name?: string; message?: string };
+
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
 
     if (err.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ message: 'ISBN already exists' });
@@ -120,6 +108,10 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
 
     if (err.name === 'SequelizeValidationError') {
       return res.status(400).json({ message: err.message || 'Invalid book payload' });
+    }
+
+    if (err.message === 'Invalid image URL') {
+      return res.status(400).json({ message: 'Invalid image URL' });
     }
 
     next(error);

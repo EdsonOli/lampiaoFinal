@@ -176,7 +176,7 @@ export class PerfilComponent implements OnInit {
     ).subscribe({
       next: () => {
         this.zone.run(() => {
-          this.authService.logout();
+          this.authService.clearSession();
           this.router.navigate(['/login']);
           this.cdr.detectChanges();
         });

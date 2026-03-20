@@ -6,9 +6,14 @@ import { ListAllComments } from '../../core/usecases/ListAllComments';
 import { ListCommentsByPost } from '../../core/usecases/ListCommentsByPost';
 import { ListCommentsByUser } from '../../core/usecases/ListCommentsByUser';
 import { UpdateComment } from '../../core/usecases/UpdateComment';
-import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate';
+import { AuthenticatedRequest, authenticate, optionalAuthenticate } from '../middlewares/authenticate';
 import { SequelizeCommentRepository } from '../repositories/SequelizeCommentRepository';
 import { SequelizePostRepository } from '../repositories/SequelizePostRepository';
+import { SequelizePostRepository as PostVisibilityRepository } from '../repositories/SequelizePostRepository';
+import { auditLog } from '../services/AuditLogger';
+import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
+import { sanitizePlainText } from '../validation/sanitizers';
+import { createCommentSchema, updateCommentSchema } from '../validation/schemas';
 
 const router = Router();
 const commentRepository = new SequelizeCommentRepository();
@@ -20,21 +25,45 @@ const listCommentsByPost = new ListCommentsByPost(commentRepository);
 const listCommentsByUser = new ListCommentsByUser(commentRepository);
 const updateComment = new UpdateComment(commentRepository);
 const deleteComment = new DeleteComment(commentRepository);
+const postVisibilityRepository = new PostVisibilityRepository();
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+async function canViewPostById(postId: number, currentUserId?: number): Promise<boolean> {
+  const post = await postVisibilityRepository.findById(postId);
+  if (!post) {
+    return false;
+  }
+
+  return post.isItPublic || (currentUserId !== undefined && post.userId === currentUserId);
+}
+
+router.get('/', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const comments = await listAllComments.execute();
-    res.json(comments);
+    const currentUserId = req.auth?.userId;
+    const visibleComments = [];
+
+    for (const comment of comments) {
+      if (await canViewPostById(comment.postId, currentUserId)) {
+        visibleComments.push(comment);
+      }
+    }
+
+    res.json(visibleComments);
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/post/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/post/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) {
       return res.status(400).json({ message: 'Invalid post id' });
+    }
+
+    const canView = await canViewPostById(id, req.auth?.userId);
+    if (!canView) {
+      return res.status(404).json({ message: 'Post not found' });
     }
 
     const comments = await listCommentsByPost.execute(id);
@@ -44,7 +73,7 @@ router.get('/post/:id', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
-router.get('/user/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) {
@@ -52,13 +81,22 @@ router.get('/user/:id', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const comments = await listCommentsByUser.execute(id);
-    res.json(comments);
+    const currentUserId = req.auth?.userId;
+    const visibleComments = [];
+
+    for (const comment of comments) {
+      if (currentUserId === id || await canViewPostById(comment.postId, currentUserId)) {
+        visibleComments.push(comment);
+      }
+    }
+
+    res.json(visibleComments);
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) {
@@ -67,6 +105,11 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     const comment = await getCommentById.execute(id);
     if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const canView = await canViewPostById(comment.postId, req.auth?.userId);
+    if (!canView) {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
@@ -79,25 +122,28 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const { title, text, postId } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (!title || !text || !Number.isInteger(postId)) {
-      return res.status(400).json({ message: 'Invalid comment payload' });
-    }
+    const payload = parseOrThrow(createCommentSchema, req.body);
 
     const comment = await createComment.execute({
-      title,
-      text,
-      postId,
+      title: sanitizePlainText(payload.title),
+      text: sanitizePlainText(payload.text),
+      postId: payload.postId,
       userId,
     });
 
+    await auditLog('comment.create', { commentId: comment.id, userId, postId: comment.postId });
+
     res.status(201).json(comment);
   } catch (error) {
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
     next(error);
   }
 });
@@ -106,7 +152,6 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
   try {
     const userId = req.auth?.userId;
     const id = Number(req.params.id);
-    const { title, text } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -116,9 +161,18 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
       return res.status(400).json({ message: 'Invalid comment id' });
     }
 
-    const comment = await updateComment.execute(id, userId, { title, text });
+    const payload = parseOrThrow(updateCommentSchema, req.body);
+    const comment = await updateComment.execute(id, userId, {
+      title: payload.title ? sanitizePlainText(payload.title) : undefined,
+      text: payload.text ? sanitizePlainText(payload.text) : undefined,
+    });
+    await auditLog('comment.update', { commentId: id, userId, updatedFields: Object.keys(payload) });
     res.json(comment);
   } catch (error) {
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
     next(error);
   }
 });
@@ -137,6 +191,7 @@ router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Respo
     }
 
     await deleteComment.execute(id, userId);
+  await auditLog('comment.delete', { commentId: id, userId });
     res.status(204).send();
   } catch (error) {
     next(error);

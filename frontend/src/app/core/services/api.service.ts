@@ -1,6 +1,8 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 export interface Post {
   id: number;
@@ -78,8 +80,14 @@ export interface UpdateProfileInput {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly baseUrl = 'http://localhost:3000/api';
   private http = inject(HttpClient);
+  private platformId = inject(PLATFORM_ID);
+
+  private get baseUrl(): string {
+    return isPlatformBrowser(this.platformId)
+      ? environment.apiBaseUrl
+      : environment.serverApiBaseUrl;
+  }
 
   // Posts
   getPosts(): Observable<Post[]> {
