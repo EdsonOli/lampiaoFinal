@@ -1,6 +1,6 @@
 
 import { Book } from '../../core/domain/Book';
-import { BookRepository } from '../../core/ports/BookRepository';
+import { BookRepository, UpdateBookInput } from '../../core/ports/BookRepository';
 import { Book as BookModel } from '../models/BookModel';
 
 export class SequelizeBookRepository implements BookRepository {
@@ -51,6 +51,38 @@ export class SequelizeBookRepository implements BookRepository {
       img: input.img ?? null,
       synopsis: input.synopsis ?? null,
     });
+    return {
+      id: book.id,
+      name: book.name,
+      isbn: book.isbn,
+      publishingCompany: book.publishing_company,
+      writer: book.writer,
+      genre: book.genre,
+      nPages: book.n_pages,
+      yearPublication: book.year_publication,
+      img: book.img,
+      synopsis: book.synopsis,
+    };
+  }
+
+  async update(id: string, input: UpdateBookInput): Promise<Book | null> {
+    const book = await BookModel.findByPk(id);
+    if (!book) {
+      return null;
+    }
+
+    await book.update({
+      name: input.name ?? book.name,
+      isbn: input.isbn ?? book.isbn,
+      publishing_company: input.publishingCompany ?? book.publishing_company,
+      writer: input.writer ?? book.writer,
+      genre: input.genre ?? book.genre,
+      n_pages: input.nPages ?? book.n_pages,
+      year_publication: input.yearPublication ?? book.year_publication,
+      img: input.img ?? book.img,
+      synopsis: input.synopsis ?? book.synopsis,
+    });
+
     return {
       id: book.id,
       name: book.name,

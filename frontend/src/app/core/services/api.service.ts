@@ -5,19 +5,19 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface Post {
-  id: number;
+  id: string;
   title: string;
   text: string;
   isItPublic: boolean;
-  userId: number;
-  bookId: number;
+  userId: string;
+  bookId: string;
   createdAt?: string;
 }
 
 export interface CreatePostInput {
   title: string;
   text: string;
-  bookId: number;
+  bookId: string;
   isItPublic?: boolean;
 }
 
@@ -28,7 +28,7 @@ export interface UpdatePostInput {
 }
 
 export interface Book {
-  id: number;
+  id: string;
   name: string;
   writer: string;
   genre: string;
@@ -41,16 +41,16 @@ export interface Book {
 }
 
 export interface Notebook {
-  id: number;
-  userId: number;
-  bookId: number;
+  id: string;
+  userId: string;
+  bookId: string;
   grade?: number;
   status: 'Lido' | 'Lendo' | 'Quero ler';
   favorite: boolean;
 }
 
 export interface CreateNotebookInput {
-  bookId: number;
+  bookId: string;
   grade?: number;
   status: Notebook['status'];
   favorite?: boolean;
@@ -63,7 +63,7 @@ export interface UpdateNotebookInput {
 }
 
 export interface UserProfile {
-  id: number;
+  id: string;
   name: string;
   email: string;
   nickname: string;
@@ -76,6 +76,12 @@ export interface UpdateProfileInput {
   nickname?: string;
   password?: string;
   img?: string;
+}
+
+export interface SignedUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  path: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -93,22 +99,22 @@ export class ApiService {
   getPosts(): Observable<Post[]> {
     return this.http.get<Post[]>(`${this.baseUrl}/posts`);
   }
-  getPostById(id: number): Observable<Post> {
+  getPostById(id: string): Observable<Post> {
     return this.http.get<Post>(`${this.baseUrl}/posts/${id}`);
   }
-  getPostsByUser(userId: number): Observable<Post[]> {
+  getPostsByUser(userId: string): Observable<Post[]> {
     return this.http.get<Post[]>(`${this.baseUrl}/posts/user/${userId}`);
   }
-  getPostsByBook(bookId: number): Observable<Post[]> {
+  getPostsByBook(bookId: string): Observable<Post[]> {
     return this.http.get<Post[]>(`${this.baseUrl}/posts/book/${bookId}`);
   }
   createPost(input: CreatePostInput): Observable<Post> {
     return this.http.post<Post>(`${this.baseUrl}/posts`, input);
   }
-  updatePost(id: number, input: UpdatePostInput): Observable<Post> {
+  updatePost(id: string, input: UpdatePostInput): Observable<Post> {
     return this.http.put<Post>(`${this.baseUrl}/posts/${id}`, input);
   }
-  deletePost(id: number): Observable<void> {
+  deletePost(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/posts/${id}`);
   }
 
@@ -116,11 +122,14 @@ export class ApiService {
   getBooks(): Observable<Book[]> {
     return this.http.get<Book[]>(`${this.baseUrl}/books`);
   }
-  getBookById(id: number): Observable<Book> {
+  getBookById(id: string): Observable<Book> {
     return this.http.get<Book>(`${this.baseUrl}/books/${id}`);
   }
   createBook(input: Omit<Book, 'id'>): Observable<Book> {
     return this.http.post<Book>(`${this.baseUrl}/books`, input);
+  }
+  updateBook(id: string, input: Partial<Omit<Book, 'id'>>): Observable<Book> {
+    return this.http.put<Book>(`${this.baseUrl}/books/${id}`, input);
   }
 
   // Notebooks
@@ -130,10 +139,10 @@ export class ApiService {
   createNotebook(input: CreateNotebookInput): Observable<Notebook> {
     return this.http.post<Notebook>(`${this.baseUrl}/notebooks`, input);
   }
-  updateNotebook(id: number, input: UpdateNotebookInput): Observable<Notebook> {
+  updateNotebook(id: string, input: UpdateNotebookInput): Observable<Notebook> {
     return this.http.put<Notebook>(`${this.baseUrl}/notebooks/${id}`, input);
   }
-  deleteNotebook(id: number): Observable<void> {
+  deleteNotebook(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/notebooks/${id}`);
   }
 
@@ -141,7 +150,7 @@ export class ApiService {
   getMe(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.baseUrl}/users/me`);
   }
-  getUserById(id: number): Observable<UserProfile> {
+  getUserById(id: string): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.baseUrl}/users/${id}`);
   }
   updateMe(input: UpdateProfileInput): Observable<UserProfile> {
@@ -149,6 +158,29 @@ export class ApiService {
   }
   deleteMe(): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/users/me`);
+  }
+
+  createProfileImageUploadUrl(fileName: string, mimeType: string): Observable<SignedUploadResponse> {
+    return this.http.post<SignedUploadResponse>(`${this.baseUrl}/uploads/profile/sign`, {
+      fileName,
+      mimeType,
+    });
+  }
+
+  createBookCoverUploadUrl(fileName: string, mimeType: string, bookId?: string): Observable<SignedUploadResponse> {
+    return this.http.post<SignedUploadResponse>(`${this.baseUrl}/uploads/book-cover/sign`, {
+      fileName,
+      mimeType,
+      bookId,
+    });
+  }
+
+  uploadFileToSignedUrl(uploadUrl: string, file: File): Observable<unknown> {
+    return this.http.put(uploadUrl, file, {
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
   }
 }
 

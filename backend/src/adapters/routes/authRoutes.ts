@@ -9,7 +9,7 @@ import { auditLog } from '../services/AuditLogger';
 import { toPublicUserDTO } from '../presenters/UserPresenter';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeOptionalPlainText } from '../validation/sanitizers';
-import { loginSchema, registerSchema } from '../validation/schemas';
+import { googleAuthSchema, loginSchema, registerSchema } from '../validation/schemas';
 
 const router = Router();
 const refreshTokenService = new JwtTokenService({
@@ -18,7 +18,7 @@ const refreshTokenService = new JwtTokenService({
 });
 
 // Get use cases from container (no direct instantiation)
-const { createUser, authenticateUser, getUserById } = Container.useCases;
+const { createUser, authenticateUser, authenticateWithGoogle, linkGoogleAccount, getUserById } = Container.useCases;
 const { tokenService } = Container.services;
 
 async function issueSessionCookies(res: Response, user: { id: string; email: string }): Promise<void> {
@@ -50,6 +50,54 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
     await auditLog('auth.register', { userId: user.id, email: user.email });
 
     res.status(201).json(toPublicUserDTO(user));
+  } catch (error) {
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
+    next(error);
+  }
+});
+
+router.post('/google', loginRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const payload = parseOrThrow(googleAuthSchema, req.body);
+    const user = await authenticateWithGoogle.execute({ idToken: payload.idToken });
+
+    await issueSessionCookies(res, user);
+    await auditLog('auth.login.google', { userId: user.id, email: user.email });
+
+    res.json({
+      user: toPublicUserDTO(user),
+    });
+  } catch (error) {
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
+    next(error);
+  }
+});
+
+router.post('/google/link', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const payload = parseOrThrow(googleAuthSchema, req.body);
+    const authUserId = req.auth?.userId;
+
+    if (!authUserId) {
+      return res.status(401).json({ message: 'Missing bearer token' });
+    }
+
+    const user = await linkGoogleAccount.execute({
+      userId: authUserId,
+      idToken: payload.idToken,
+    });
+
+    await auditLog('auth.link.google', { userId: user.id, email: user.email });
+
+    res.json({
+      user: toPublicUserDTO(user),
+    });
   } catch (error) {
     if (isValidationError(error)) {
       return res.status(400).json({ message: getValidationMessage(error) });

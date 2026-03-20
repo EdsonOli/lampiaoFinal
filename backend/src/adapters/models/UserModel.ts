@@ -6,8 +6,11 @@ export class User extends Model<any, any> {
   public name!: string;
   public email!: string;
   public nickname!: string;
-  public password!: string;
+  public password?: string;
   public img?: string;
+  public authProvider!: 'local' | 'google';
+  public providerId?: string;
+  public emailVerified!: boolean;
   public role!: 'user' | 'admin';
 }
 
@@ -33,11 +36,29 @@ User.init(
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     img: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    authProvider: {
+      type: DataTypes.ENUM('local', 'google'),
+      allowNull: false,
+      defaultValue: 'local',
+      field: 'auth_provider',
+    },
+    providerId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      field: 'provider_id',
+    },
+    emailVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'email_verified',
     },
     role: {
       type: DataTypes.ENUM('user', 'admin'),

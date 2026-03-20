@@ -54,6 +54,9 @@
     <div class="book-grid">
       @for (book of filteredBooks; track book.id) {
         <a class="book-card" [routerLink]="['/livros', book.id]">
+          @if (isAdmin) {
+            <button class="book-edit-btn" type="button" (click)="openEditModal(book, $event)">Editar</button>
+          }
           <div class="cover-frame">
             @if (book.img) {
               <img [src]="book.img" [alt]="book.name" class="book-cover" />
@@ -173,7 +176,7 @@
 
       <!-- Etapa 2: Confirmar / Editar formulário -->
       @if (modalStep === 'form') {
-        <h2 class="modal-title">Confirmar dados do livro</h2>
+        <h2 class="modal-title">{{ formMode === 'edit' ? 'Editar dados do livro' : 'Confirmar dados do livro' }}</h2>
 
         <div class="form-grid">
           <label class="form-field form-field--full">
@@ -206,8 +209,39 @@
           </label>
           <label class="form-field form-field--full">
             <span>URL da capa</span>
-            <input type="url" [(ngModel)]="form.img" class="modal-input" placeholder="https://..." />
+            <input
+              type="url"
+              [(ngModel)]="form.img"
+              (ngModelChange)="onCoverUrlChange($event)"
+              class="modal-input"
+              placeholder="https://..."
+            />
           </label>
+          <label class="form-field form-field--full">
+            <span>Upload da capa</span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/avif"
+              (change)="onCoverFileSelected($event)"
+              class="modal-input"
+            />
+            @if (coverUploadBusy) {
+              <small class="upload-helper">Enviando {{ selectedCoverName }}...</small>
+            }
+            @if (coverUploadError) {
+              <small class="upload-helper upload-helper-error">{{ coverUploadError }}</small>
+            }
+          </label>
+          <div class="form-field form-field--full cover-preview-shell">
+            <span>Pré-visualização da capa</span>
+            <div class="cover-preview-frame">
+              @if (coverPreviewUrl) {
+                <img [src]="coverPreviewUrl" alt="Pré-visualização da capa" class="cover-preview-image" />
+              } @else {
+                <div class="cover-preview-placeholder">Sem capa selecionada</div>
+              }
+            </div>
+          </div>
           <label class="form-field form-field--full">
             <span>Sinopse</span>
             <textarea [(ngModel)]="form.synopsis" class="modal-input modal-textarea" rows="4" placeholder="Resumo do livro..."></textarea>
@@ -220,9 +254,11 @@
 
         <div class="modal-actions">
           <button class="btn-primary" (click)="submitBook()" [disabled]="saving">
-            {{ saving ? 'Salvando...' : 'Cadastrar livro' }}
+            {{ saving ? 'Salvando...' : (formMode === 'edit' ? 'Salvar alteracoes' : 'Cadastrar livro') }}
           </button>
-          <button class="btn-secondary" (click)="backToSearch()">Voltar</button>
+          @if (formMode === 'create') {
+            <button class="btn-secondary" (click)="backToSearch()">Voltar</button>
+          }
           <button class="btn-secondary" (click)="closeModal()">Cancelar</button>
         </div>
       }

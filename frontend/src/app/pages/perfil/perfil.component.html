@@ -82,6 +82,13 @@
                 <input type="text" formControlName="img" placeholder="URL da foto de perfil" />
               </label>
               <label>
+                <span>Upload de foto</span>
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/avif" (change)="onProfileImageSelected($event)" />
+                @if (uploadingImage) {
+                  <small>Enviando {{ selectedImageName }}...</small>
+                }
+              </label>
+              <label>
                 <span>Nova senha</span>
                 <input type="password" formControlName="password" placeholder="Digite uma nova senha se quiser alterar" />
               </label>
@@ -97,6 +104,9 @@
               <div class="form-actions">
                 <button class="btn-editar" type="submit" [disabled]="saving || form.invalid">
                   {{ saving ? 'Salvando...' : 'Salvar alterações' }}
+                </button>
+                <button class="btn-google-link" type="button" [disabled]="linkingGoogle" (click)="linkGoogleAccount()">
+                  {{ linkingGoogle ? 'Conectando ao Google...' : 'Vincular conta Google' }}
                 </button>
                 <button class="btn-ghost" type="button" (click)="toggleEdit()">Cancelar</button>
               </div>

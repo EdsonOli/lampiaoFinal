@@ -6,7 +6,8 @@ const passwordSchema = z.string()
   .max(128)
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number');
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one symbol');
 
 const optionalTrimmedString = (min = 1, max = 255) =>
   z.preprocess(
@@ -28,7 +29,26 @@ export const registerSchema = z.object({
   ),
   nickname: requiredTrimmedString(2, 80),
   password: passwordSchema,
+  confirmPassword: z.string().min(1).max(128),
   img: optionalTrimmedString(1, 2048),
+}).refine(payload => payload.password === payload.confirmPassword, {
+  message: 'Password confirmation does not match',
+  path: ['confirmPassword'],
+});
+
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(20),
+});
+
+export const profileImageUploadSchema = z.object({
+  fileName: requiredTrimmedString(1, 120),
+  mimeType: z.string().min(5).max(120),
+});
+
+export const bookCoverUploadSchema = z.object({
+  bookId: z.string().uuid().optional(),
+  fileName: requiredTrimmedString(1, 120),
+  mimeType: z.string().min(5).max(120),
 });
 
 export const loginSchema = z.object({
@@ -52,6 +72,23 @@ export const createBookSchema = z.object({
   yearPublication: z.coerce.number().int().min(1000).max(currentYear + 1),
   img: optionalTrimmedString(1, 2048),
   synopsis: optionalTrimmedString(1, 5000),
+});
+
+export const updateBookSchema = z.object({
+  name: optionalTrimmedString(1, 255),
+  isbn: optionalTrimmedString(10, 20),
+  publishingCompany: optionalTrimmedString(1, 255),
+  writer: optionalTrimmedString(1, 255),
+  genre: z.union([
+    optionalTrimmedString(1, 500),
+    z.array(requiredTrimmedString(1, 100)).min(1).max(10),
+  ]).optional(),
+  nPages: z.coerce.number().int().positive().max(50000).optional(),
+  yearPublication: z.coerce.number().int().min(1000).max(currentYear + 1).optional(),
+  img: optionalTrimmedString(1, 2048),
+  synopsis: optionalTrimmedString(1, 5000),
+}).refine(payload => Object.values(payload).some(value => value !== undefined), {
+  message: 'At least one field must be provided',
 });
 
 export const createPostSchema = z.object({

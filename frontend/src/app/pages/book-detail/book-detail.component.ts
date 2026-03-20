@@ -24,7 +24,7 @@ export class BookDetailComponent implements OnInit {
 
   book: Book | null = null;
   posts: Post[] = [];
-  currentBookId = 0;
+  currentBookId = '';
 
   userNotebook: Notebook | null = null;
   notebookBusy = false;
@@ -41,20 +41,20 @@ export class BookDetailComponent implements OnInit {
   postBusy = false;
   postError = '';
   postFilter: 'all' | 'public' | 'mine' = 'all';
-  postAuthors: Record<number, string> = {};
+  postAuthors: Record<string, string> = {};
 
-  editingPostId: number | null = null;
+  editingPostId: string | null = null;
   editingTitle = '';
   editingText = '';
   editingIsPublic = true;
   postActionBusy = false;
-  pendingDeletePostId: number | null = null;
+  pendingDeletePostId: string | null = null;
 
   get canRate(): boolean {
     return this.userNotebook?.status === 'Lido';
   }
 
-  get currentUserId(): number | null {
+  get currentUserId(): string | null {
     return this.authService.currentUser?.id ?? null;
   }
 
@@ -71,9 +71,9 @@ export class BookDetailComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = this.route.snapshot.paramMap.get('id') ?? '';
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       this.error = 'Livro não encontrado.';
       this.loading = false;
       return;
@@ -439,7 +439,7 @@ export class BookDetailComponent implements OnInit {
     this.pendingDeletePostId = null;
   }
 
-  private loadNotebookState(bookId: number): void {
+  private loadNotebookState(bookId: string): void {
     this.apiService
       .getMyNotebooks()
       .pipe(
@@ -488,7 +488,7 @@ export class BookDetailComponent implements OnInit {
       });
   }
 
-  private loadPosts(bookId: number): void {
+  private loadPosts(bookId: string): void {
     this.apiService
       .getPostsByBook(bookId)
       .pipe(
@@ -497,7 +497,11 @@ export class BookDetailComponent implements OnInit {
       )
       .subscribe(posts => {
         this.zone.run(() => {
-          this.posts = [...posts].sort((a, b) => b.id - a.id);
+          this.posts = [...posts].sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+          });
           this.loadAuthorsForPosts(posts);
           this.cdr.detectChanges();
         });

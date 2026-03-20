@@ -3,4 +3,5 @@ export const environment = {
   apiBaseUrl: '/api/v1',
   serverApiBaseUrl: 'http://localhost:3000/api/v1',
   googleBooksApiKey: '',
+  googleClientId: '',
 };

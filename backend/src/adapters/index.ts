@@ -9,6 +9,7 @@ import bookRoutes from './routes/bookRoutes';
 import commentRoutes from './routes/commentRoutes';
 import notebookRoutes from './routes/notebookRoutes';
 import postRoutes from './routes/postRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 import userRoutes from './routes/userRoutes';
 import sequelize from '../config/database';
 import { initModels } from './models/initModels';
@@ -117,6 +118,7 @@ app.use('/api/books', cors(publicCorsOptions), bookRoutes);
 app.use('/api/comments', cors(credentialedCorsOptions), commentRoutes);
 app.use('/api/notebooks', cors(credentialedCorsOptions), notebookRoutes);
 app.use('/api/posts', cors(credentialedCorsOptions), postRoutes);
+app.use('/api/uploads', cors(credentialedCorsOptions), uploadRoutes);
 app.use('/api/users', cors(credentialedCorsOptions), userRoutes);
 
 app.use('/api/v1/auth', cors(credentialedCorsOptions), authRoutes);
@@ -125,6 +127,7 @@ app.use('/api/v1/books', cors(publicCorsOptions), bookRoutes);
 app.use('/api/v1/comments', cors(credentialedCorsOptions), commentRoutes);
 app.use('/api/v1/notebooks', cors(credentialedCorsOptions), notebookRoutes);
 app.use('/api/v1/posts', cors(credentialedCorsOptions), postRoutes);
+app.use('/api/v1/uploads', cors(credentialedCorsOptions), uploadRoutes);
 app.use('/api/v1/users', cors(credentialedCorsOptions), userRoutes);
 
 // Middleware global de tratamento de erros (deve ser o último middleware)

@@ -59,7 +59,8 @@ describe('Auth route semantic error mapping', () => {
         name: 'Alice',
         email: 'alice@example.com',
         nickname: 'ali',
-        password: 'Abcdef1234',
+        password: 'Abcdef1234!',
+        confirmPassword: 'Abcdef1234!',
       });
 
     expect(response.status).toBe(400);
@@ -75,7 +76,8 @@ describe('Auth route semantic error mapping', () => {
         name: 'Bob',
         email: 'bob@example.com',
         nickname: 'bobby',
-        password: 'Abcdef1234',
+        password: 'Abcdef1234!',
+        confirmPassword: 'Abcdef1234!',
       });
 
     expect(response.status).toBe(409);

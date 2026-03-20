@@ -1,6 +1,6 @@
 
 import { Book } from '../../core/domain/Book';
-import { BookRepository } from '../../core/ports/BookRepository';
+import { BookRepository, UpdateBookInput } from '../../core/ports/BookRepository';
 
 // Dados mocados para simular um banco de dados
 const books: Book[] = [
@@ -52,5 +52,19 @@ export class InMemoryBookRepository implements BookRepository {
     const newBook: Book = { id, ...input };
     books.push(newBook);
     return Promise.resolve(newBook);
+  }
+
+  async update(id: string, input: UpdateBookInput): Promise<Book | null> {
+    const index = books.findIndex(b => b.id === id);
+    if (index === -1) {
+      return Promise.resolve(null);
+    }
+
+    books[index] = {
+      ...books[index],
+      ...input,
+    };
+
+    return Promise.resolve(books[index]);
   }
 }

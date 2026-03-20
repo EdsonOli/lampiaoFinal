@@ -3,16 +3,18 @@ import { NextFunction, Request, Response, Router } from 'express';
 import { Container } from '../container';
 import { ValidationError } from '../../core/errors';
 import { authenticate } from '../middlewares/authenticate';
+import { requireAdmin } from '../middlewares/requireAdmin';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeBookImageUrl, sanitizeOptionalPlainText, sanitizePlainText } from '../validation/sanitizers';
-import { createBookSchema } from '../validation/schemas';
+import { createBookSchema, updateBookSchema } from '../validation/schemas';
 
 const router = Router();
 
 // Get use cases from container
 const {
   createBook,
+  updateBook,
   getBookById,
   listAllBooks,
 } = Container.useCases;
@@ -49,7 +51,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Rota para cadastrar um novo livro (autenticado)
-router.post('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', authenticate, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const payload = parseOrThrow(createBookSchema, req.body);
 
@@ -91,6 +93,79 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
     await auditLog('book.create', { bookId: book.id, isbn: book.isbn });
 
     res.status(201).json(book);
+  } catch (error) {
+    const err = error as { name?: string; message?: string };
+
+    if (isValidationError(error)) {
+      return res.status(400).json({ message: getValidationMessage(error) });
+    }
+
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return res.status(409).json({ message: 'ISBN already exists' });
+    }
+
+    if (err.name === 'SequelizeValidationError') {
+      return res.status(400).json({ message: err.message || 'Invalid book payload' });
+    }
+
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+});
+
+router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = String(req.params.id);
+    if (!id) {
+      return res.status(400).json({ message: 'Invalid book id' });
+    }
+
+    const payload = parseOrThrow(updateBookSchema, req.body);
+
+    const normalizeGenre = (value: unknown): string | undefined => {
+      if (Array.isArray(value)) {
+        const genres = value
+          .filter((entry): entry is string => typeof entry === 'string')
+          .map(entry => entry.trim())
+          .filter(Boolean);
+        const merged = [...new Set(genres)].join(', ');
+        return merged || undefined;
+      }
+
+      if (typeof value === 'string') {
+        const merged = value
+          .split(',')
+          .map(entry => entry.trim())
+          .filter(Boolean)
+          .filter((entry, index, list) => list.indexOf(entry) === index)
+          .join(', ');
+        return merged || undefined;
+      }
+
+      return undefined;
+    };
+
+    const updatedBook = await updateBook.execute(id, {
+      name: sanitizeOptionalPlainText(payload.name),
+      isbn: sanitizeOptionalPlainText(payload.isbn),
+      publishingCompany: sanitizeOptionalPlainText(payload.publishingCompany),
+      writer: sanitizeOptionalPlainText(payload.writer),
+      genre: normalizeGenre(payload.genre),
+      nPages: payload.nPages,
+      yearPublication: payload.yearPublication,
+      img: sanitizeBookImageUrl(payload.img),
+      synopsis: sanitizeOptionalPlainText(payload.synopsis),
+    });
+
+    await auditLog('book.update', {
+      bookId: updatedBook.id,
+      updatedFields: Object.keys(payload),
+    });
+
+    res.json(updatedBook);
   } catch (error) {
     const err = error as { name?: string; message?: string };
 

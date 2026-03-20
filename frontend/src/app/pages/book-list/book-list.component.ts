@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
 import { ApiService, Book } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { GoogleBooksService, GoogleBookCandidate } from '../../core/services/google-books.service';
 import { NavbarComponent } from '../../shared/navbar/navbar.component';
 
@@ -17,6 +18,7 @@ import { NavbarComponent } from '../../shared/navbar/navbar.component';
 })
 export class BookListComponent implements OnInit {
   private apiService = inject(ApiService);
+  private authService = inject(AuthService);
   private googleBooks = inject(GoogleBooksService);
   private cdr = inject(ChangeDetectorRef);
   private zone = inject(NgZone);
@@ -38,9 +40,15 @@ export class BookListComponent implements OnInit {
     );
   }
 
+  get isAdmin(): boolean {
+    return this.authService.currentUser?.role === 'admin';
+  }
+
   // --- Modal de criação ---
   showModal = false;
   modalStep: 'search' | 'form' = 'search';
+  formMode: 'create' | 'edit' = 'create';
+  editingBookId: string | null = null;
 
   googleQuery = '';
   googleResults: GoogleBookCandidate[] = [];
@@ -79,6 +87,10 @@ export class BookListComponent implements OnInit {
   };
   saving = false;
   saveError = '';
+  coverUploadBusy = false;
+  coverUploadError = '';
+  selectedCoverName = '';
+  coverPreviewUrl = '';
 
   ngOnInit(): void {
     this.loadBooks();
@@ -110,6 +122,8 @@ export class BookListComponent implements OnInit {
   openModal(): void {
     this.showModal = true;
     this.modalStep = 'search';
+    this.formMode = 'create';
+    this.editingBookId = null;
     this.googleQuery = '';
     this.googleResults = [];
     this.googleHasMore = true;
@@ -165,6 +179,8 @@ export class BookListComponent implements OnInit {
   }
 
   selectCandidate(candidate: GoogleBookCandidate): void {
+    this.formMode = 'create';
+    this.editingBookId = null;
     this.form = {
       name: candidate.name,
       writer: candidate.writer,
@@ -176,6 +192,7 @@ export class BookListComponent implements OnInit {
       img: candidate.img ?? '',
       synopsis: candidate.synopsis ?? '',
     };
+    this.coverPreviewUrl = this.form.img || '';
     this.modalStep = 'form';
   }
 
@@ -396,8 +413,40 @@ export class BookListComponent implements OnInit {
   }
 
   fillManually(): void {
+    this.formMode = 'create';
+    this.editingBookId = null;
     this.resetForm();
+    this.coverPreviewUrl = '';
     this.modalStep = 'form';
+  }
+
+  openEditModal(book: Book, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.showModal = true;
+    this.modalStep = 'form';
+    this.formMode = 'edit';
+    this.editingBookId = book.id;
+    this.googleError = '';
+    this.saveError = '';
+    this.coverUploadError = '';
+    this.selectedCoverName = '';
+    this.coverUploadBusy = false;
+
+    this.form = {
+      name: book.name,
+      writer: book.writer,
+      genre: book.genre,
+      nPages: book.nPages,
+      yearPublication: book.yearPublication,
+      isbn: book.isbn,
+      publishingCompany: book.publishingCompany,
+      img: book.img ?? '',
+      synopsis: book.synopsis ?? '',
+    };
+
+    this.coverPreviewUrl = this.form.img || '';
   }
 
   backToSearch(): void {
@@ -421,7 +470,11 @@ export class BookListComponent implements OnInit {
       synopsis: this.form.synopsis || undefined,
     };
 
-    this.apiService.createBook(payload).pipe(
+    const request$ = this.formMode === 'edit' && this.editingBookId
+      ? this.apiService.updateBook(this.editingBookId, payload)
+      : this.apiService.createBook(payload);
+
+    request$.pipe(
       timeout(10000),
       catchError((err: HttpErrorResponse) => {
         this.zone.run(() => {
@@ -443,7 +496,11 @@ export class BookListComponent implements OnInit {
       next: newBook => {
         this.zone.run(() => {
           if (newBook) {
-            this.books = [newBook, ...this.books];
+            if (this.formMode === 'edit' && this.editingBookId) {
+              this.books = this.books.map(book => (book.id === this.editingBookId ? newBook : book));
+            } else {
+              this.books = [newBook, ...this.books];
+            }
             this.closeModal();
           }
           this.cdr.detectChanges();
@@ -452,12 +509,103 @@ export class BookListComponent implements OnInit {
     });
   }
 
+  onCoverUrlChange(value: string): void {
+    this.coverPreviewUrl = value?.trim() || '';
+  }
+
+  onCoverFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+    if (!allowedTypes.has(file.type)) {
+      this.coverUploadError = 'Formato nao suportado. Use JPG, PNG, WEBP ou AVIF.';
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.coverUploadError = 'A capa deve ter no maximo 5MB.';
+      input.value = '';
+      return;
+    }
+
+    this.coverUploadBusy = true;
+    this.coverUploadError = '';
+    this.selectedCoverName = file.name;
+
+    const localPreview = URL.createObjectURL(file);
+    this.coverPreviewUrl = localPreview;
+
+    this.apiService
+      .createBookCoverUploadUrl(file.name, file.type)
+      .pipe(
+        timeout(15000),
+        catchError((err: HttpErrorResponse) => {
+          this.zone.run(() => {
+            this.coverUploadBusy = false;
+            this.coverUploadError = err?.error?.message || 'Nao foi possivel enviar a capa agora.';
+            this.cdr.detectChanges();
+          });
+          return of(null);
+        })
+      )
+      .subscribe((signed) => {
+        if (!signed) {
+          return;
+        }
+
+        this.apiService
+          .uploadFileToSignedUrl(signed.uploadUrl, file)
+          .pipe(
+            timeout(15000),
+            catchError((err: HttpErrorResponse) => {
+              this.zone.run(() => {
+                this.coverUploadBusy = false;
+                this.coverUploadError = err?.error?.message || 'Falha ao enviar arquivo para o storage.';
+                this.cdr.detectChanges();
+              });
+              return of(null);
+            }),
+            finalize(() => {
+              this.zone.run(() => {
+                if (this.coverUploadBusy) {
+                  this.coverUploadBusy = false;
+                  this.cdr.detectChanges();
+                }
+              });
+            })
+          )
+          .subscribe((uploaded) => {
+            this.zone.run(() => {
+              if (uploaded === null) {
+                return;
+              }
+
+              this.form.img = signed.publicUrl;
+              this.coverPreviewUrl = signed.publicUrl;
+              this.cdr.detectChanges();
+            });
+          });
+      });
+  }
+
   private resetForm(): void {
     this.form = {
       name: '', writer: '', genre: '', nPages: 0,
       yearPublication: new Date().getFullYear(),
       isbn: '', publishingCompany: '', img: '', synopsis: '',
     };
+    this.coverPreviewUrl = '';
+    this.coverUploadBusy = false;
+    this.coverUploadError = '';
+    this.selectedCoverName = '';
+    this.formMode = 'create';
+    this.editingBookId = null;
   }
 }
 

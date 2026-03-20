@@ -4,6 +4,7 @@
  */
 export abstract class AppError extends Error {
   abstract statusCode: number;
+  readonly code?: string;
   abstract readonly message: string;
 
   constructor(message: string) {

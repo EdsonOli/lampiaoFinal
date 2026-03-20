@@ -1,10 +1,13 @@
 import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, finalize, of, timeout } from 'rxjs';
+import { PLATFORM_ID } from '@angular/core';
+import { catchError, finalize, of, switchMap, timeout } from 'rxjs';
 import { ApiService, Book, Notebook, UserProfile } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { mapGoogleAuthError } from '../../core/utils/map-google-auth-error';
+import { environment } from '../../../environments/environment';
 import { NavbarComponent } from '../../shared/navbar/navbar.component';
 
 interface ShelfItem {
@@ -26,6 +29,7 @@ export class PerfilComponent implements OnInit {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private zone = inject(NgZone);
+  private platformId = inject(PLATFORM_ID);
 
   user: UserProfile | null = null;
   notebooks: Notebook[] = [];
@@ -42,10 +46,13 @@ export class PerfilComponent implements OnInit {
   loading = true;
   saving = false;
   deletingAccount = false;
+  linkingGoogle = false;
+  uploadingImage = false;
   editMode = false;
   successMessage = '';
   errorMessage = '';
   formError = '';
+  selectedImageName = '';
 
   private userLoaded = false;
   private notebooksLoaded = false;
@@ -184,6 +191,173 @@ export class PerfilComponent implements OnInit {
     });
   }
 
+  onProfileImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+
+    if (!allowedTypes.has(file.type)) {
+      this.formError = 'Formato nao suportado. Use JPG, PNG, WEBP ou AVIF.';
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.formError = 'A imagem deve ter no maximo 5MB.';
+      input.value = '';
+      return;
+    }
+
+    this.uploadingImage = true;
+    this.formError = '';
+    this.successMessage = '';
+    this.selectedImageName = file.name;
+
+    this.apiService
+      .createProfileImageUploadUrl(file.name, file.type)
+      .pipe(
+        switchMap((signed) =>
+          this.apiService
+            .uploadFileToSignedUrl(signed.uploadUrl, file)
+            .pipe(switchMap(() => this.apiService.updateMe({ img: signed.publicUrl })))
+        ),
+        timeout(15000),
+        catchError((err) => {
+          this.formError = err.error?.message ?? 'Nao foi possivel enviar a imagem agora.';
+          this.uploadingImage = false;
+          return of(null);
+        }),
+        finalize(() => {
+          this.zone.run(() => {
+            if (this.uploadingImage) {
+              this.uploadingImage = false;
+              this.cdr.detectChanges();
+            }
+          });
+        })
+      )
+      .subscribe((updatedUser) => {
+        this.zone.run(() => {
+          if (!updatedUser) {
+            return;
+          }
+
+          this.user = updatedUser;
+          this.successMessage = 'Foto de perfil atualizada com sucesso!';
+          this.authService.updateCurrentUser({
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            nickname: updatedUser.nickname,
+            img: updatedUser.img,
+          });
+          this.form.patchValue({ img: updatedUser.img ?? '' });
+          this.cdr.detectChanges();
+        });
+      });
+  }
+
+  linkGoogleAccount(): void {
+    if (this.linkingGoogle) {
+      return;
+    }
+
+    this.linkingGoogle = true;
+    this.formError = '';
+    this.successMessage = '';
+
+    this.requestGoogleIdToken()
+      .then((idToken) => {
+        this.authService.linkGoogleAccount(idToken)
+          .pipe(
+            timeout(10000),
+            catchError((err) => {
+              this.formError = mapGoogleAuthError(err);
+              this.linkingGoogle = false;
+              return of(null);
+            }),
+            finalize(() => {
+              this.zone.run(() => {
+                if (this.linkingGoogle) {
+                  this.linkingGoogle = false;
+                  this.cdr.detectChanges();
+                }
+              });
+            })
+          )
+          .subscribe((response) => {
+            this.zone.run(() => {
+              if (!response?.user) {
+                return;
+              }
+
+              this.successMessage = 'Conta Google vinculada com sucesso!';
+
+              this.authService.updateCurrentUser({
+                id: response.user.id,
+                name: response.user.name,
+                email: response.user.email,
+                nickname: response.user.nickname,
+                img: response.user.img,
+              });
+
+              if (this.user) {
+                this.user = {
+                  ...this.user,
+                  img: this.user.img ?? response.user.img,
+                };
+              }
+
+              this.cdr.detectChanges();
+            });
+          });
+      })
+      .catch((error) => {
+        this.formError = error?.message ?? 'Nao foi possivel iniciar o Google Sign-In.';
+        this.linkingGoogle = false;
+      });
+  }
+
+  private requestGoogleIdToken(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!isPlatformBrowser(this.platformId)) {
+        reject(new Error('Google Sign-In indisponivel neste ambiente'));
+        return;
+      }
+
+      const clientId = environment.googleClientId?.trim();
+      const googleApi = (window as any).google;
+
+      if (!clientId || !googleApi?.accounts?.id) {
+        reject(new Error('Google Sign-In nao configurado. Defina googleClientId no environment.'));
+        return;
+      }
+
+      googleApi.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response: { credential?: string }) => {
+          if (!response?.credential) {
+            reject(new Error('Token do Google nao recebido.'));
+            return;
+          }
+
+          resolve(response.credential);
+        },
+      });
+
+      googleApi.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+          reject(new Error('Google Sign-In indisponivel no momento.'));
+        }
+      });
+    });
+  }
+
   private loadUser(): void {
     this.apiService
       .getMe()
@@ -284,7 +458,7 @@ export class PerfilComponent implements OnInit {
   }
 
   private buildShelfData(): void {
-    const booksById = new Map<number, Book>(this.books.map(book => [book.id, book]));
+    const booksById = new Map<string, Book>(this.books.map(book => [book.id, book]));
 
     const mergedItems: ShelfItem[] = this.notebooks
       .map(notebook => {

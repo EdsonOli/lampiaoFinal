@@ -5,7 +5,10 @@ export interface User {
   name: string;
   email: string;
   nickname: string;
-  password: string;
+  password?: string;
   img?: string;
+  authProvider?: 'local' | 'google';
+  providerId?: string;
+  emailVerified?: boolean;
   role: UserRole;
 }

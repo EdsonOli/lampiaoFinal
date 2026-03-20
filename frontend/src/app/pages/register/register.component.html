@@ -58,7 +58,32 @@
           </div>
         </div>
         @if (form.get('password')?.invalid && form.get('password')?.touched) {
-          <span class="error">A senha precisa ter pelo menos 6 caracteres.</span>
+          <span class="error">Use ao menos 10 caracteres com maiuscula, minuscula, numero e simbolo.</span>
+        }
+
+        <div class="password-strength" [class]="'password-strength ' + passwordStrengthClass">
+          <p>Forca da senha: <strong>{{ passwordStrengthLabel }}</strong></p>
+          <ul>
+            @for (check of passwordChecks; track check.label) {
+              <li [class.valid]="check.valid">{{ check.label }}</li>
+            }
+          </ul>
+        </div>
+
+        <div class="input-div pass">
+          <div class="div">
+            <label for="confirmPassword">Confirme sua senha</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              formControlName="confirmPassword"
+              placeholder="Repita a senha"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+        @if (form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched) {
+          <span class="error">A confirmacao da senha precisa ser igual a senha principal.</span>
         }
 
         <div class="login-link">
@@ -72,6 +97,14 @@
 
         <button class="btn" type="submit" [disabled]="loading || form.invalid">
           {{ loading ? 'Criando conta...' : 'Cadastre-se' }}
+        </button>
+
+        <div class="auth-divider" role="presentation">
+          <span>ou</span>
+        </div>
+
+        <button class="btn-google" type="button" [disabled]="googleLoading" (click)="onGoogleRegister()">
+          {{ googleLoading ? 'Conectando ao Google...' : 'Continuar com Google' }}
         </button>
       </div>
     </form>

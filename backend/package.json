@@ -33,6 +33,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.3",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "bcryptjs": "^3.0.3",
@@ -42,6 +43,7 @@
     "dotenv": "^17.3.1",
     "express": "^4.17.1",
     "express-rate-limit": "^8.3.1",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.9.7",

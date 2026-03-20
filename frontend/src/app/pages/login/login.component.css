@@ -222,6 +222,51 @@ input::placeholder {
   cursor: not-allowed;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin-top: 0.9rem;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.auth-divider span {
+  margin: 0 0.65rem;
+}
+
+.btn-google {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 0.9rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-text-primary);
+  font-family: var(--font-brand);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-google:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(184, 106, 47, 0.45);
+}
+
+.btn-google:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .elipse,
   .artwork {

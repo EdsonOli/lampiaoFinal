@@ -252,6 +252,10 @@
   color: var(--color-brand-secondary);
 }
 
+.modal-body small {
+  color: var(--color-text-secondary);
+}
+
 .modal-body input {
   min-height: 46px;
   border-radius: var(--radius-md);
@@ -277,6 +281,23 @@
   border: 1px solid transparent;
   background: linear-gradient(135deg, var(--color-brand-primary), #c8834f);
   color: #fff;
+}
+
+.btn-google-link {
+  min-height: 44px;
+  border-radius: 999px;
+  padding: 0.75rem 1.2rem;
+  border: 1px solid var(--color-border-soft);
+  background: #fff;
+  color: var(--color-text-primary);
+  font-family: var(--font-brand);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-google-link:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .btn-editar:disabled {

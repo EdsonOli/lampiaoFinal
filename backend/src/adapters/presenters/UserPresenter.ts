@@ -6,6 +6,7 @@ export interface PublicUserDTO {
   email: string;
   nickname: string;
   img?: string;
+  role?: User['role'];
 }
 
 export interface AdminUserDTO extends PublicUserDTO {
@@ -19,6 +20,7 @@ export function toPublicUserDTO(user: User): PublicUserDTO {
     email: user.email,
     nickname: user.nickname,
     img: user.img,
+    role: user.role,
   };
 }
 

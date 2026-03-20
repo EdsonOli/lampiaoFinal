@@ -3,3 +3,7 @@ export { NotFoundError } from './NotFoundError';
 export { ConflictError } from './ConflictError';
 export { ForbiddenError } from './ForbiddenError';
 export { ValidationError } from './ValidationError';
+export { GoogleAccountLinkConflictError } from './GoogleAccountLinkConflictError';
+export { GoogleEmailNotVerifiedError } from './GoogleEmailNotVerifiedError';
+export { GoogleLinkEmailMismatchError } from './GoogleLinkEmailMismatchError';
+export { GoogleProviderAlreadyLinkedError } from './GoogleProviderAlreadyLinkedError';

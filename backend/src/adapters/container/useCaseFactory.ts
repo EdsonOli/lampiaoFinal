@@ -7,6 +7,10 @@ import { infrastructure } from './infrastructure';
 
 // Auth use cases
 import { AuthenticateUser } from '../../core/usecases/AuthenticateUser';
+import { AuthenticateWithGoogle } from '../../core/usecases/AuthenticateWithGoogle';
+import { LinkGoogleAccount } from '../../core/usecases/LinkGoogleAccount';
+import { CreateProfileImageUploadUrl } from '../../core/usecases/CreateProfileImageUploadUrl';
+import { CreateBookCoverUploadUrl } from '../../core/usecases/CreateBookCoverUploadUrl';
 
 // User use cases
 import { CreateUser } from '../../core/usecases/CreateUser';
@@ -41,6 +45,7 @@ import { ListUserNotebooks } from '../../core/usecases/ListUserNotebooks';
 
 // Book use cases
 import { CreateBook } from '../../core/usecases/CreateBook';
+import { UpdateBook } from '../../core/usecases/UpdateBook';
 import { GetBooks } from '../../core/usecases/GetBooks';
 import { GetBookById } from '../../core/usecases/GetBookById';
 import { ListAllBooks } from '../../core/usecases/ListAllBooks';
@@ -51,6 +56,21 @@ const createUseCases = () => ({
     infrastructure.repositories.user,
     infrastructure.services.passwordHasher,
     infrastructure.services.tokenService
+  ),
+  authenticateWithGoogle: new AuthenticateWithGoogle(
+    infrastructure.repositories.user,
+    infrastructure.services.googleIdTokenVerifier
+  ),
+  linkGoogleAccount: new LinkGoogleAccount(
+    infrastructure.repositories.user,
+    infrastructure.services.googleIdTokenVerifier
+  ),
+  createProfileImageUploadUrl: new CreateProfileImageUploadUrl(
+    infrastructure.services.imageStorage
+  ),
+  createBookCoverUploadUrl: new CreateBookCoverUploadUrl(
+    infrastructure.services.imageStorage,
+    infrastructure.repositories.book
   ),
 
   // User
@@ -101,6 +121,7 @@ const createUseCases = () => ({
 
   // Book
   createBook: new CreateBook(infrastructure.repositories.book),
+  updateBook: new UpdateBook(infrastructure.repositories.book),
   getBooks: new GetBooks(infrastructure.repositories.book),
   getBookById: new GetBookById(infrastructure.repositories.book),
   listAllBooks: new ListAllBooks(infrastructure.repositories.book),

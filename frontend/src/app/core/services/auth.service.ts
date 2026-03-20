@@ -5,15 +5,16 @@ import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
 
 export interface AuthUser {
-  id: number;
+  id: string;
   name: string;
   email: string;
   nickname: string;
   img?: string;
+  role?: 'user' | 'admin';
 }
 
 interface LoginResponse {
-  user: AuthUser;
+  user: AuthUser | null;
 }
 
 interface RegisterResponse extends AuthUser {}
@@ -56,8 +57,24 @@ export class AuthService {
     );
   }
 
-  register(name: string, email: string, nickname: string, password: string): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${this.apiUrl}/register`, { name, email, nickname, password }, { withCredentials: true });
+  register(name: string, email: string, nickname: string, password: string, confirmPassword: string): Observable<RegisterResponse> {
+    return this.http.post<RegisterResponse>(
+      `${this.apiUrl}/register`,
+      { name, email, nickname, password, confirmPassword },
+      { withCredentials: true }
+    );
+  }
+
+  googleAuth(idToken: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/google`, { idToken }, { withCredentials: true }).pipe(
+      tap(response => this.saveSession(response.user))
+    );
+  }
+
+  linkGoogleAccount(idToken: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/google/link`, { idToken }, { withCredentials: true }).pipe(
+      tap(response => this.saveSession(response.user))
+    );
   }
 
   validateSession(): Observable<AuthUser | null> {

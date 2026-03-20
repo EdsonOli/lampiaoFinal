@@ -9,7 +9,9 @@ import { SequelizeCommentRepository } from '../repositories/SequelizeCommentRepo
 import { SequelizeNotebookRepository } from '../repositories/SequelizeNotebookRepository';
 import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
 import { BcryptPasswordHasher } from '../services/BcryptPasswordHasher';
+import { GoogleIdTokenVerifierService } from '../services/GoogleIdTokenVerifierService';
 import { JwtTokenService } from '../services/JwtTokenService';
+import { SupabaseImageStorageService } from '../services/SupabaseImageStorageService';
 
 // Repositories
 const userRepository = new SequelizeUserRepository();
@@ -21,6 +23,8 @@ const bookRepository = new SequelizeBookRepository();
 // Services
 const passwordHasher = new BcryptPasswordHasher();
 const tokenService = new JwtTokenService();
+const googleIdTokenVerifier = new GoogleIdTokenVerifierService();
+const imageStorage = new SupabaseImageStorageService();
 
 export const infrastructure = {
   repositories: {
@@ -33,5 +37,7 @@ export const infrastructure = {
   services: {
     passwordHasher,
     tokenService,
+    googleIdTokenVerifier,
+    imageStorage,
   },
 };

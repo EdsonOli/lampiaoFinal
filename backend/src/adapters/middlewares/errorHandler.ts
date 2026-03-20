@@ -7,10 +7,17 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  const statusCode = err instanceof AppError ? err.statusCode : 500;
+  const isAppError = err instanceof AppError;
+  const statusCode = isAppError ? err.statusCode : 500;
   const message = err.message || 'Internal server error';
 
-  res.status(statusCode).json({
+  const payload: { error: string; code?: string } = {
     error: message,
-  });
+  };
+
+  if (isAppError && typeof err.code === 'string') {
+    payload.code = err.code;
+  }
+
+  res.status(statusCode).json(payload);
 }

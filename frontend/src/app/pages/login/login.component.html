@@ -64,6 +64,14 @@
         <button class="btn" type="submit" [disabled]="loading || form.invalid">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
+
+        <div class="auth-divider" role="presentation">
+          <span>ou</span>
+        </div>
+
+        <button class="btn-google" type="button" [disabled]="googleLoading" (click)="onGoogleLogin()">
+          {{ googleLoading ? 'Conectando ao Google...' : 'Continuar com Google' }}
+        </button>
       </div>
     </form>
   </section>

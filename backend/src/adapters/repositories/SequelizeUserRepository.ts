@@ -10,6 +10,9 @@ function mapUser(user: UserModel): User {
     nickname: user.nickname,
     password: user.password,
     img: user.img,
+    authProvider: user.authProvider,
+    providerId: user.providerId,
+    emailVerified: user.emailVerified,
     role: user.role ?? 'user',
   };
 }
@@ -27,6 +30,9 @@ export class SequelizeUserRepository implements UserRepository {
       nickname: input.nickname,
       password: input.password,
       img: input.img,
+      authProvider: input.authProvider ?? 'local',
+      providerId: input.providerId,
+      emailVerified: input.emailVerified ?? false,
       role: input.role ?? 'user',
     });
 
@@ -45,6 +51,9 @@ export class SequelizeUserRepository implements UserRepository {
       nickname: input.nickname ?? user.nickname,
       password: input.password ?? user.password,
       img: input.img ?? user.img,
+      authProvider: input.authProvider ?? user.authProvider,
+      providerId: input.providerId ?? user.providerId,
+      emailVerified: input.emailVerified ?? user.emailVerified,
     });
 
     return mapUser(user);
@@ -61,6 +70,11 @@ export class SequelizeUserRepository implements UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const user = await UserModel.findOne({ where: { email } });
+    return user ? mapUser(user) : null;
+  }
+
+  async findByProviderId(providerId: string): Promise<User | null> {
+    const user = await UserModel.findOne({ where: { providerId } });
     return user ? mapUser(user) : null;
   }
 }
