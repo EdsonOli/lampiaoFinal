@@ -30,6 +30,10 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<AuthUser | null>(this.loadUser());
   currentUser$ = this.currentUserSubject.asObservable();
 
+  get currentUser(): AuthUser | null {
+    return this.currentUserSubject.value;
+  }
+
   get token(): string | null {
     if (!isPlatformBrowser(this.platformId)) return null;
     return localStorage.getItem(this.TOKEN_KEY);
@@ -47,6 +51,13 @@ export class AuthService {
 
   register(name: string, email: string, nickname: string, password: string): Observable<RegisterResponse> {
     return this.http.post<RegisterResponse>(`${this.apiUrl}/register`, { name, email, nickname, password });
+  }
+
+  updateCurrentUser(user: AuthUser): void {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    }
+    this.currentUserSubject.next(user);
   }
 
   logout(): void {

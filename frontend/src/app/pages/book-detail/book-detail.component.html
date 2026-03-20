@@ -14,6 +14,51 @@
             <h5>{{ book.writer }}</h5>
             <h5>{{ book.genre }}</h5>
           </div>
+
+          <section class="notebook-controls">
+            @if (!userNotebook) {
+              <button class="btn-add-shelf" (click)="addToNotebook()" [disabled]="notebookBusy">
+                {{ notebookBusy ? 'Adicionando...' : 'Adicionar na estante' }}
+              </button>
+            } @else {
+              <div class="status-group">
+                @for (status of statusOptions; track status) {
+                  <button
+                    class="status-chip"
+                    [class.active]="userNotebook.status === status"
+                    (click)="setStatus(status)"
+                    [disabled]="notebookBusy"
+                  >
+                    {{ status }}
+                  </button>
+                }
+              </div>
+
+              <div class="actions-row">
+                <button class="favorite-btn" (click)="toggleFavorite()" [disabled]="notebookBusy">
+                  {{ userNotebook.favorite ? '❤️ Favorito' : '🤍 Favoritar' }}
+                </button>
+
+                <div class="stars-rate">
+                  @for (star of starValues; track star) {
+                    <button
+                      class="star-btn"
+                      [class.active]="isStarActive(star)"
+                      (click)="setGrade(star)"
+                      [disabled]="notebookBusy || !canRate"
+                      [attr.title]="canRate ? 'Avaliar com ' + star + ' estrela(s)' : 'Defina status Lido para avaliar'"
+                    >
+                      ★
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (notebookError) {
+              <p class="notebook-error">{{ notebookError }}</p>
+            }
+          </section>
         </div>
 
         <div class="book-view">
@@ -65,15 +110,115 @@
         <section class="posts-section">
           <h2>Resenhas e posts</h2>
 
-          @if (posts.length === 0) {
+          <div class="post-filters">
+            <button class="filter-btn" [class.active]="postFilter === 'all'" (click)="postFilter = 'all'">Todos</button>
+            <button class="filter-btn" [class.active]="postFilter === 'public'" (click)="postFilter = 'public'">
+              Públicos
+            </button>
+            <button class="filter-btn" [class.active]="postFilter === 'mine'" (click)="postFilter = 'mine'">Meus posts</button>
+          </div>
+
+          <form class="post-form" (ngSubmit)="submitPost()">
+            <label>
+              Título
+              <input
+                type="text"
+                name="postTitle"
+                [(ngModel)]="postTitle"
+                maxlength="120"
+                placeholder="Ex.: Valeu a leitura?"
+                [disabled]="postBusy"
+              />
+            </label>
+
+            <label>
+              Sua opinião
+              <textarea
+                name="postText"
+                [(ngModel)]="postText"
+                rows="4"
+                maxlength="1500"
+                placeholder="Compartilhe sua resenha sobre esse livro"
+                [disabled]="postBusy"
+              ></textarea>
+            </label>
+
+            <label class="switch-public">
+              <input
+                type="checkbox"
+                name="postIsPublic"
+                [(ngModel)]="postIsPublic"
+                [disabled]="postBusy"
+              />
+              Publicar para todos
+            </label>
+
+            <button type="submit" class="btn-submit-post" [disabled]="postBusy">
+              {{ postBusy ? 'Publicando...' : 'Publicar post' }}
+            </button>
+
+            @if (postError) {
+              <p class="post-error">{{ postError }}</p>
+            }
+          </form>
+
+          @if (filteredPosts.length === 0) {
             <p class="status">Nenhum post sobre este livro ainda.</p>
           } @else {
             <div class="post-list">
-              @for (post of posts; track post.id) {
+              @for (post of filteredPosts; track post.id) {
                 <article class="post-card">
-                  <h3>{{ post.title }}</h3>
-                  <p>{{ post.text }}</p>
-                  <span class="visibility">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
+                  @if (editingPostId === post.id) {
+                    <div class="post-edit-form">
+                      <input type="text" [(ngModel)]="editingTitle" name="editingTitle" [disabled]="postActionBusy" />
+                      <textarea
+                        [(ngModel)]="editingText"
+                        name="editingText"
+                        rows="4"
+                        [disabled]="postActionBusy"
+                      ></textarea>
+
+                      <label class="switch-public">
+                        <input type="checkbox" [(ngModel)]="editingIsPublic" name="editingIsPublic" [disabled]="postActionBusy" />
+                        Publicar para todos
+                      </label>
+
+                      <div class="post-actions">
+                        <button class="btn-small" (click)="saveEditing()" [disabled]="postActionBusy">Salvar</button>
+                        <button class="btn-small ghost" (click)="cancelEditing()" [disabled]="postActionBusy">Cancelar</button>
+                      </div>
+                    </div>
+                  } @else {
+                    <h3>{{ post.title }}</h3>
+                    <p>{{ post.text }}</p>
+
+                    <div class="post-meta">
+                      <span class="author">{{ getPostAuthor(post) }}</span>
+                      <span>{{ formatPostDate(post) }}</span>
+                      <span class="visibility">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
+                    </div>
+
+                    @if (isMine(post)) {
+                      <div class="post-actions">
+                        <button class="btn-small" (click)="startEditing(post)" [disabled]="postActionBusy">Editar</button>
+                        <button class="btn-small danger" (click)="askDelete(post)" [disabled]="postActionBusy">Excluir</button>
+                      </div>
+
+                      @if (pendingDeletePostId === post.id) {
+                        <div class="delete-confirm">
+                          <p>Tem certeza que deseja excluir este post?</p>
+                          <div class="post-actions">
+                            <button class="btn-small danger" (click)="deletePost(post)" [disabled]="postActionBusy">
+                              {{ postActionBusy ? 'Excluindo...' : 'Confirmar exclusão' }}
+                            </button>
+                            <button class="btn-small ghost" (click)="cancelDelete()" [disabled]="postActionBusy">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    }
+                  }
                 </article>
               }
             </div>

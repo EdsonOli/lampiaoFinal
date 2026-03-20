@@ -47,20 +47,29 @@
         <div class="modal-editar-user">
           <div class="modal-header">
             <h3>Editar Perfil</h3>
+            <button type="button" class="close" (click)="toggleEdit()">X</button>
           </div>
           <div class="modal-body">
             <form [formGroup]="form" (ngSubmit)="saveProfile()">
               <input type="text" formControlName="name" placeholder="Seu nome" />
               <input type="email" formControlName="email" placeholder="Email" />
               <input type="text" formControlName="nickname" placeholder="Nickname" />
+              <input type="text" formControlName="img" placeholder="URL da foto de perfil" />
               <input type="password" formControlName="password" placeholder="Senha" />
+              <input type="password" formControlName="passwordConfirm" placeholder="Confirme a senha" />
 
-              @if (errorMessage) {
-                <p class="alert-error">{{ errorMessage }}</p>
+              @if (formError) {
+                <p class="alert-error">{{ formError }}</p>
               }
 
               <button class="btn-editar" type="submit" [disabled]="saving || form.invalid">
                 {{ saving ? 'Salvando...' : 'Salvar alterações' }}
+              </button>
+
+              <h4>OU</h4>
+
+              <button class="delete-user" type="button" [disabled]="deletingAccount" (click)="deleteAccount()">
+                {{ deletingAccount ? 'Excluindo conta...' : 'Deletar conta' }}
               </button>
             </form>
           </div>
@@ -85,50 +94,59 @@
       <section class="estante-container">
         <h1 id="title">Minha estante</h1>
 
-        @if (favoriteBooks.length > 0) {
-          <div class="favoritos">
+        @if (favoriteShelfItems.length > 0) {
+          <div class="shelf-section favoritos">
             <h2>Favoritos</h2>
             <div class="book-strip">
-              @for (book of favoriteBooks; track book.id) {
-                <a class="shelf-book" [routerLink]="['/livros', book.id]">
-                  <img [src]="book.img || '/img/livro-01.png'" [alt]="book.name" />
-                </a>
+              @for (item of favoriteShelfItems; track item.notebook.id) {
+                <article class="shelf-card">
+                  <a class="shelf-book" [routerLink]="['/livros', item.book.id]">
+                    <img [src]="item.book.img || '/img/livro-01.png'" [alt]="item.book.name" />
+                  </a>
+                  <div class="shelf-meta">
+                    <h3>{{ item.book.name }}</h3>
+                    <p class="shelf-author">{{ item.book.writer }}</p>
+                    <div class="nb-right">
+                      <span class="nb-status">{{ STATUS_LABELS[item.notebook.status] || item.notebook.status }}</span>
+                      <span class="nb-grade" [class.nb-pill-empty]="item.notebook.grade === null || item.notebook.grade === undefined">
+                        ⭐ {{ item.notebook.grade ?? 0 }}/5
+                      </span>
+                      <span class="nb-fav" [class.nb-pill-empty]="!item.notebook.favorite">❤️ Favorito</span>
+                    </div>
+                  </div>
+                </article>
               }
             </div>
           </div>
         }
 
-        <h2>Todos</h2>
-        @if (shelfBooks.length === 0) {
-          <p class="status">Você ainda não adicionou livros à sua estante.</p>
-        } @else {
-          <div class="book-strip">
-            @for (book of shelfBooks; track book.id) {
-              <a class="shelf-book" [routerLink]="['/livros', book.id]">
-                <img [src]="book.img || '/img/livro-01.png'" [alt]="book.name" />
-              </a>
-            }
-          </div>
-
-          <div class="notebook-list">
-            @for (nb of notebooks; track nb.id) {
-              <div class="notebook-card">
-                <div class="nb-left">
-                  <span class="nb-status">{{ STATUS_LABELS[nb.status] || nb.status }}</span>
-                  <span class="nb-book">Livro #{{ nb.bookId }}</span>
-                </div>
-                <div class="nb-right">
-                  @if (nb.grade !== null && nb.grade !== undefined) {
-                    <span class="nb-grade">⭐ {{ nb.grade }}/5</span>
-                  }
-                  @if (nb.favorite) {
-                    <span class="nb-fav">❤️ Favorito</span>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        }
+        <div class="shelf-section all-books">
+          <h2>Todos</h2>
+          @if (shelfItems.length === 0) {
+            <p class="status">Você ainda não adicionou livros à sua estante.</p>
+          } @else {
+            <div class="book-strip">
+              @for (item of shelfItems; track item.notebook.id) {
+                <article class="shelf-card">
+                  <a class="shelf-book" [routerLink]="['/livros', item.book.id]">
+                    <img [src]="item.book.img || '/img/livro-01.png'" [alt]="item.book.name" />
+                  </a>
+                  <div class="shelf-meta">
+                    <h3>{{ item.book.name }}</h3>
+                    <p class="shelf-author">{{ item.book.writer }}</p>
+                    <div class="nb-right">
+                      <span class="nb-status">{{ STATUS_LABELS[item.notebook.status] || item.notebook.status }}</span>
+                      <span class="nb-grade" [class.nb-pill-empty]="item.notebook.grade === null || item.notebook.grade === undefined">
+                        ⭐ {{ item.notebook.grade ?? 0 }}/5
+                      </span>
+                      <span class="nb-fav" [class.nb-pill-empty]="!item.notebook.favorite">❤️ Favorito</span>
+                    </div>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </div>
       </section>
     </section>
   } @else {

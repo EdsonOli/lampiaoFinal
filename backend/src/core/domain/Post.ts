@@ -5,4 +5,6 @@ export interface Post {
   isItPublic: boolean;
   userId: number;
   bookId: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }

@@ -46,4 +46,11 @@ export class InMemoryBookRepository implements BookRepository {
     const book = books.find(b => b.id === id);
     return Promise.resolve(book || null);
   }
+
+  async create(input: Omit<Book, 'id'>): Promise<Book> {
+    const id = books.length > 0 ? Math.max(...books.map(b => b.id)) + 1 : 1;
+    const newBook: Book = { id, ...input };
+    books.push(newBook);
+    return Promise.resolve(newBook);
+  }
 }

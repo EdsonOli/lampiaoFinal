@@ -10,6 +10,8 @@ function mapPost(post: PostModel): Post {
     isItPublic: post.is_it_public,
     userId: post.user_id,
     bookId: post.book_id,
+    createdAt: (post as unknown as { createdAt?: Date }).createdAt,
+    updatedAt: (post as unknown as { updatedAt?: Date }).updatedAt,
   };
 }
 
