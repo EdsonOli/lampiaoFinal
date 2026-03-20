@@ -1,4 +1,3 @@
-'''
 import { Book } from '../domain/Book';
 import { BookRepository } from '../ports/BookRepository';
 
@@ -9,4 +8,3 @@ export class ListAllBooks {
     return this.bookRepository.findAll();
   }
 }
-'''

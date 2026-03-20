@@ -1,8 +1,6 @@
-'''
 import { Book } from '../domain/Book';
 
 export interface BookRepository {
   findAll(): Promise<Book[]>;
-  findById(id: string): Promise<Book | null>;
+  findById(id: number): Promise<Book | null>;
 }
-'''

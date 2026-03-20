@@ -1,0 +1,29 @@
+<nav class="navbar">
+  <a class="brand" routerLink="/timeline" aria-label="Ir para a timeline">
+    <img src="/img/LogoBranca.svg" alt="Lampião" class="brand-logo" />
+  </a>
+
+  <div class="links">
+    @if (authService.isLoggedIn) {
+      <a class="nav-link" routerLink="/timeline" routerLinkActive="active">
+        <img src="/img/home-white.png" alt="" aria-hidden="true" />
+        <span>Timeline</span>
+      </a>
+      <a class="nav-link" routerLink="/livros" routerLinkActive="active">
+        <img src="/img/lampiaozinho.png" alt="" aria-hidden="true" />
+        <span>Livros</span>
+      </a>
+      <a class="nav-link" routerLink="/perfil" routerLinkActive="active">
+        <img src="/img/perfil-white.png" alt="" aria-hidden="true" />
+        <span>Perfil</span>
+      </a>
+      <button class="btn-logout" (click)="logout()">
+        <img src="/img/check-out-white.png" alt="" aria-hidden="true" />
+        <span>Sair</span>
+      </button>
+    } @else {
+      <a class="nav-link guest-link" routerLink="/login" routerLinkActive="active">Entrar</a>
+      <a routerLink="/cadastro" routerLinkActive="active" class="btn-register">Criar conta</a>
+    }
+  </div>
+</nav>

@@ -1,0 +1,140 @@
+<app-navbar />
+
+<main class="profile-page">
+  @if (loading && !user) {
+    <p class="status">Carregando perfil...</p>
+  } @else if (user) {
+    <section class="profile-hero">
+      <div class="hero-surface">
+        <div class="perfil">
+          @if (user.img) {
+            <img [src]="user.img" [alt]="user.name" />
+          } @else {
+            <div class="avatar-fallback">{{ user.name[0] | uppercase }}</div>
+          }
+          <p id="name">{{ user.name }}</p>
+          <p id="nickname">&#64;{{ user.nickname }}</p>
+          <p class="email">{{ user.email }}</p>
+        </div>
+
+        <div class="status-geral">
+          <div class="status-box">
+            <h2>Lidos</h2>
+            <h2 id="quantity">{{ statusCounts['Lido'] }}</h2>
+          </div>
+          <div class="status-box">
+            <h2>Lendo</h2>
+            <h2 id="quantity">{{ statusCounts['Lendo'] }}</h2>
+          </div>
+          <div class="status-box">
+            <h2>Quero ler</h2>
+            <h2 id="quantity">{{ statusCounts['Quero ler'] }}</h2>
+          </div>
+          <div class="status-box">
+            <h2>Favoritos</h2>
+            <h2 id="quantity">{{ favoriteCount }}</h2>
+          </div>
+        </div>
+
+        <button class="btn-edit" (click)="toggleEdit()">
+          {{ editMode ? 'Cancelar edição' : 'Editar perfil' }}
+        </button>
+      </div>
+    </section>
+
+    @if (editMode) {
+      <section class="edit-form">
+        <div class="modal-editar-user">
+          <div class="modal-header">
+            <h3>Editar Perfil</h3>
+          </div>
+          <div class="modal-body">
+            <form [formGroup]="form" (ngSubmit)="saveProfile()">
+              <input type="text" formControlName="name" placeholder="Seu nome" />
+              <input type="email" formControlName="email" placeholder="Email" />
+              <input type="text" formControlName="nickname" placeholder="Nickname" />
+              <input type="password" formControlName="password" placeholder="Senha" />
+
+              @if (errorMessage) {
+                <p class="alert-error">{{ errorMessage }}</p>
+              }
+
+              <button class="btn-editar" type="submit" [disabled]="saving || form.invalid">
+                {{ saving ? 'Salvando...' : 'Salvar alterações' }}
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+    }
+
+    @if (successMessage) {
+      <p class="alert-success">{{ successMessage }}</p>
+    }
+
+    <section class="main-perfil">
+      <section class="paginometro">
+        <h3>Paginômetro</h3>
+        <img src="/img/menina-paginometro.png" alt="Personagem do paginômetro" />
+        <div class="rectangle">
+          <img src="/img/Rectangle-pag.png" alt="Paginômetro" />
+          <h4>{{ totalPages }}</h4>
+        </div>
+      </section>
+
+      <section class="estante-container">
+        <h1 id="title">Minha estante</h1>
+
+        @if (favoriteBooks.length > 0) {
+          <div class="favoritos">
+            <h2>Favoritos</h2>
+            <div class="book-strip">
+              @for (book of favoriteBooks; track book.id) {
+                <a class="shelf-book" [routerLink]="['/livros', book.id]">
+                  <img [src]="book.img || '/img/livro-01.png'" [alt]="book.name" />
+                </a>
+              }
+            </div>
+          </div>
+        }
+
+        <h2>Todos</h2>
+        @if (shelfBooks.length === 0) {
+          <p class="status">Você ainda não adicionou livros à sua estante.</p>
+        } @else {
+          <div class="book-strip">
+            @for (book of shelfBooks; track book.id) {
+              <a class="shelf-book" [routerLink]="['/livros', book.id]">
+                <img [src]="book.img || '/img/livro-01.png'" [alt]="book.name" />
+              </a>
+            }
+          </div>
+
+          <div class="notebook-list">
+            @for (nb of notebooks; track nb.id) {
+              <div class="notebook-card">
+                <div class="nb-left">
+                  <span class="nb-status">{{ STATUS_LABELS[nb.status] || nb.status }}</span>
+                  <span class="nb-book">Livro #{{ nb.bookId }}</span>
+                </div>
+                <div class="nb-right">
+                  @if (nb.grade !== null && nb.grade !== undefined) {
+                    <span class="nb-grade">⭐ {{ nb.grade }}/5</span>
+                  }
+                  @if (nb.favorite) {
+                    <span class="nb-fav">❤️ Favorito</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    </section>
+  } @else {
+    <section class="profile-fallback">
+      <p class="status error">{{ errorMessage || 'Nao foi possivel carregar o perfil.' }}</p>
+      <a routerLink="/login" class="status-link">Ir para login</a>
+    </section>
+  }
+</main>

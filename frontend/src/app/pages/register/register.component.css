@@ -1,0 +1,151 @@
+.register-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 430px) minmax(260px, 1fr);
+  gap: 4rem;
+  align-items: center;
+  width: min(1200px, calc(100vw - 3rem));
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.register-form-panel {
+  display: flex;
+  justify-content: center;
+}
+
+.register-form {
+  width: 100%;
+}
+
+.logo-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.brand-image {
+  width: min(80%, 250px);
+}
+
+h1 {
+  margin: 0.8rem 0 1rem;
+  color: #4a4a4a;
+  text-transform: uppercase;
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+.input-div {
+  position: relative;
+  display: grid;
+  margin: 1rem 0 0.35rem;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid #d9d9d9;
+}
+
+.div {
+  min-height: 48px;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #999;
+  font-size: 0.92rem;
+}
+
+input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0.45rem 0;
+  font-size: 1.05rem;
+  color: #555;
+}
+
+.input-div:focus-within {
+  border-bottom-color: #c36752;
+}
+
+.error {
+  display: block;
+  font-size: 0.82rem;
+  color: #b4382f;
+}
+
+.login-link {
+  margin-top: 1.2rem;
+  text-align: center;
+  color: #999;
+}
+
+.login-link p,
+.login-link a {
+  margin: 0.2rem 0;
+  text-decoration: none;
+}
+
+.login-link a:hover {
+  color: #c36752;
+}
+
+.alert-error {
+  margin: 1rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 16px;
+  background: rgba(195, 103, 82, 0.12);
+  color: #8b2f21;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  margin-top: 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background-image: linear-gradient(to right, #c36752, #b65d49, #c36752);
+  background-size: 200%;
+  color: #fff;
+  font-size: 1.02rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-position 0.35s ease, opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background-position: right;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-art-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.artwork {
+  width: min(100%, 560px);
+  filter: drop-shadow(0 18px 45px rgba(74, 74, 74, 0.14));
+}
+
+@media (max-width: 900px) {
+  .register-shell {
+    display: flex;
+    justify-content: center;
+    width: min(100vw - 2rem, 430px);
+    padding: 3rem 0;
+  }
+
+  .register-art-panel {
+    display: none;
+  }
+}

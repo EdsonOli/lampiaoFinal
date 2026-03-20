@@ -1,0 +1,39 @@
+<app-navbar />
+
+<main class="timeline-page">
+  <section class="timeline-hero">
+    <div class="timeline-copy">
+      <p class="eyebrow">Comunidade Lampião</p>
+      <h1>Últimos lampiões acesos</h1>
+      <p class="lead">
+        O visual volta para a atmosfera do projeto original: capas em destaque, tons terrosos e um mural que parece estante viva.
+      </p>
+    </div>
+    <img src="/img/timeline-banner.png" alt="Banner da timeline" class="hero-art" />
+  </section>
+
+  <section class="timeline-content">
+    @if (loading) {
+      <p class="status">Carregando posts...</p>
+    } @else if (error) {
+      <p class="status error">{{ error }}</p>
+    } @else if (posts.length === 0) {
+      <p class="status">Nenhum post ainda.</p>
+    } @else {
+      <div class="feed-label">Mural da comunidade</div>
+
+      <div class="post-feed">
+        @for (post of posts; track post.id) {
+          <article class="post-card">
+            <div class="post-book-pill">Livro #{{ post.bookId }}</div>
+            <h2>{{ post.title }}</h2>
+            <p>{{ post.text }}</p>
+            <footer>
+              <span class="tag">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
+            </footer>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</main>

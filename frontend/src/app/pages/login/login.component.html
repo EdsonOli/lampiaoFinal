@@ -1,0 +1,59 @@
+<img class="elipse" src="/img/Elipse.png" alt="" aria-hidden="true" />
+
+<main class="auth-shell auth-shell-login">
+  <section class="art-panel">
+    <img src="/img/cenário-login.png" alt="Ilustração do Lampião" class="artwork" />
+  </section>
+
+  <section class="form-panel">
+    <form class="auth-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <img src="/img/logoPreta.png" alt="Lampião" class="brand-image" />
+      <h1>Entrar</h1>
+
+      <div class="input-div one">
+        <div class="div">
+          <label for="email">E-mail</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="Email"
+            autocomplete="email"
+          />
+        </div>
+      </div>
+      @if (form.get('email')?.invalid && form.get('email')?.touched) {
+        <span class="error">E-mail inválido</span>
+      }
+
+      <div class="input-div pass">
+        <div class="div">
+          <label for="password">Senha</label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            placeholder="Senha"
+            autocomplete="current-password"
+          />
+        </div>
+      </div>
+      @if (form.get('password')?.invalid && form.get('password')?.touched) {
+        <span class="error">Senha deve ter ao menos 6 caracteres</span>
+      }
+
+      @if (errorMessage) {
+        <p class="alert-error">{{ errorMessage }}</p>
+      }
+
+      <div class="cadastre">
+        <h2>Primeira vez no Lampião?</h2>
+        <a routerLink="/cadastro">Cadastre-se</a>
+      </div>
+
+      <button class="btn" type="submit" [disabled]="loading || form.invalid">
+        {{ loading ? 'Entrando...' : 'Entrar' }}
+      </button>
+    </form>
+  </section>
+</main>

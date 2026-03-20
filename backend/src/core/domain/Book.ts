@@ -1,7 +1,13 @@
 
 export interface Book {
-  id: string;
-  title: string;
-  author: string;
-  coverUrl?: string; 
+  id: number;
+  name: string;
+  isbn: string;
+  publishingCompany: string;
+  writer: string;
+  genre: string;
+  nPages: number;
+  yearPublication: number;
+  img?: string;
+  synopsis?: string;
 }

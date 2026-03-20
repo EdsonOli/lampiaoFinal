@@ -8,18 +8,32 @@ export class SequelizeBookRepository implements BookRepository {
     const books = await BookModel.findAll();
     return books.map(book => ({
       id: book.id,
-      title: book.title,
-      author: book.author,
+      name: book.name,
+      isbn: book.isbn,
+      publishingCompany: book.publishing_company,
+      writer: book.writer,
+      genre: book.genre,
+      nPages: book.n_pages,
+      yearPublication: book.year_publication,
+      img: book.img,
+      synopsis: book.synopsis,
     }));
   }
 
-  async findById(id: string): Promise<Book | null> {
+  async findById(id: number): Promise<Book | null> {
     const book = await BookModel.findByPk(id);
     if (book) {
       return {
         id: book.id,
-        title: book.title,
-        author: book.author,
+        name: book.name,
+        isbn: book.isbn,
+        publishingCompany: book.publishing_company,
+        writer: book.writer,
+        genre: book.genre,
+        nPages: book.n_pages,
+        yearPublication: book.year_publication,
+        img: book.img,
+        synopsis: book.synopsis,
       };
     }
     return null;

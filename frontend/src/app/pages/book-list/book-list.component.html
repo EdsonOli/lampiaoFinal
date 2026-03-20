@@ -1,0 +1,39 @@
+<app-navbar />
+
+<main class="library-page">
+  <section class="library-hero">
+    <div>
+      <p class="eyebrow">Estante do Lampião</p>
+      <h1 class="page-title">Livros para acender a leitura</h1>
+      <p class="subtitle">A listagem ganhou o clima do acervo original, com capas em destaque e tipografia mais marcante.</p>
+    </div>
+    <img src="/img/lampiaozinho.png" alt="Mascote Lampião" class="hero-icon" />
+  </section>
+
+  @if (loading) {
+    <p class="status">Carregando livros...</p>
+  } @else if (error) {
+    <p class="status error">{{ error }}</p>
+  } @else if (books.length === 0) {
+    <p class="status">Nenhum livro cadastrado.</p>
+  } @else {
+    <div class="book-grid">
+      @for (book of books; track book.id) {
+        <a class="book-card" [routerLink]="['/livros', book.id]">
+          <div class="cover-frame">
+            @if (book.img) {
+              <img [src]="book.img" [alt]="book.name" class="book-cover" />
+            } @else {
+              <div class="book-cover-placeholder">📖</div>
+            }
+          </div>
+          <div class="book-info">
+            <h2>{{ book.name }}</h2>
+            <p class="author">{{ book.writer }}</p>
+            <span class="genre">{{ book.genre }}</span>
+          </div>
+        </a>
+      }
+    </div>
+  }
+</main>

@@ -1,0 +1,173 @@
+.elipse {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(42vw, 520px);
+  height: auto;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.auth-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 420px);
+  gap: 3rem;
+  align-items: center;
+  width: min(1180px, calc(100vw - 3rem));
+  margin: 0 auto;
+  padding: 2.5rem 0;
+}
+
+.art-panel {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.artwork {
+  width: min(100%, 530px);
+  filter: drop-shadow(0 20px 40px rgba(74, 74, 74, 0.16));
+}
+
+.form-panel {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-form {
+  width: min(100%, 360px);
+}
+
+.brand-image {
+  width: min(80%, 250px);
+  margin: 0 auto 1.5rem;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #4a4a4a;
+}
+
+.input-div {
+  position: relative;
+  display: grid;
+  margin: 1.15rem 0 0.35rem;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid #d9d9d9;
+}
+
+.div {
+  position: relative;
+  min-height: 48px;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #999;
+  font-size: 0.92rem;
+}
+
+input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0.45rem 0;
+  font-size: 1.12rem;
+  color: #555;
+}
+
+input::placeholder {
+  color: #bbb;
+}
+
+.input-div:focus-within {
+  border-bottom-color: #c36752;
+}
+
+.error {
+  display: block;
+  font-size: 0.82rem;
+  color: #b4382f;
+}
+
+.alert-error {
+  margin: 1rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 16px;
+  background: rgba(195, 103, 82, 0.12);
+  color: #8b2f21;
+}
+
+.cadastre {
+  margin-top: 1.35rem;
+  text-align: center;
+  color: #999;
+}
+
+.cadastre h2,
+.cadastre a {
+  margin: 0.15rem 0;
+  font-size: 0.95rem;
+  font-weight: 400;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.cadastre a:hover,
+.cadastre h2:hover {
+  color: #c36752;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  margin-top: 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background-image: linear-gradient(to right, #c36752, #b65d49, #c36752);
+  background-size: 200%;
+  color: #fff;
+  font-size: 1.02rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-position 0.35s ease, opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background-position: right;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .elipse,
+  .art-panel {
+    display: none;
+  }
+
+  .auth-shell {
+    display: flex;
+    justify-content: center;
+    width: min(100vw - 2rem, 420px);
+    padding: 3rem 0;
+  }
+
+  .form-panel,
+  .auth-form {
+    width: 100%;
+  }
+}

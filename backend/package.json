@@ -1,29 +1,42 @@
-
 {
   "name": "lampiao-backend",
   "version": "1.0.0",
   "description": "Backend for the Lampiao project",
   "main": "dist/adapters/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "npm run build && node dist/adapters/index.js",
     "dev": "nodemon",
-    "db:migrate": "npx sequelize-cli db:migrate",
-    "db:seed:all": "npx sequelize-cli db:seed:all",
-    "db:reset": "npx sequelize-cli db:migrate:undo:all && npm run db:migrate && npm run db:seed:all"
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "db:migrate": "npx sequelize-cli db:migrate --config config/config.js",
+    "db:seed:all": "npx sequelize-cli db:seed:all --config config/config.js",
+    "db:reset": "npx sequelize-cli db:migrate:undo:all --config config/config.js && npm run db:migrate && npm run db:seed:all"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.12.12",
+    "jest": "^30.3.0",
     "nodemon": "^3.1.0",
     "sequelize-cli": "^6.6.2",
+    "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
     "express": "^4.17.1",
+    "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.9.7",
     "sequelize": "^6.37.3",
     "sqlite3": "^5.1.7"

@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --lampiao-paper: #faf9f5;
+  --lampiao-ink: #4a4a4a;
+  --lampiao-brown: #8c4c0e;
+  --lampiao-brown-soft: #c36752;
+  --lampiao-green: rgba(34, 75, 9, 0.8);
+  --lampiao-purple: rgba(53, 46, 136, 0.82);
+  --lampiao-shadow: 0 18px 45px rgba(74, 74, 74, 0.12);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: 'Oxanium', sans-serif;
+  background: var(--lampiao-paper);
+  color: var(--lampiao-ink);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}

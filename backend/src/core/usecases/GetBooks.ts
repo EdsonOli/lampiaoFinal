@@ -8,7 +8,7 @@ export class GetBooks {
     return this.bookRepository.findAll();
   }
 
-  async getBookById(id: string): Promise<Book | null> {
+  async getBookById(id: number): Promise<Book | null> {
     return this.bookRepository.findById(id);
   }
 }

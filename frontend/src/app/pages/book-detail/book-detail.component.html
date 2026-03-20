@@ -1,0 +1,85 @@
+<app-navbar />
+
+<main class="book-page">
+  @if (loading) {
+    <p class="status">Carregando livro...</p>
+  } @else if (error) {
+    <p class="status error">{{ error }}</p>
+  } @else if (book) {
+    <section class="main-book">
+      <div class="left-side">
+        <div class="book-title">
+          <h1>{{ book.name }}</h1>
+          <div class="book-writer-status">
+            <h5>{{ book.writer }}</h5>
+            <h5>{{ book.genre }}</h5>
+          </div>
+        </div>
+
+        <div class="book-view">
+          <div class="book-cape">
+            @if (book.img) {
+              <img [src]="book.img" [alt]="book.name" class="img-principal" />
+            } @else {
+              <div class="cover-placeholder">📖</div>
+            }
+          </div>
+        </div>
+
+        <div class="div-rating-stars">
+          <div class="stars">
+            <div class="media">
+              <span class="media-label">Ano</span>
+              <span class="media-valor">{{ book.yearPublication }}</span>
+            </div>
+            <div class="media">
+              <span class="media-label">Páginas</span>
+              <span class="media-valor">{{ book.nPages }}</span>
+            </div>
+            <div class="media media-last">
+              <span class="media-label">Posts</span>
+              <span class="media-valor">{{ posts.length }}</span>
+            </div>
+          </div>
+          <div class="rating">Informações principais do acervo</div>
+        </div>
+
+        <div class="info-status">
+          <div>
+            <h4>Editora</h4>
+            <p>{{ book.publishingCompany }}</p>
+          </div>
+          <div>
+            <h4>ISBN</h4>
+            <p>{{ book.isbn }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-side">
+        <section class="synopsis">
+          <h2>Sinopse</h2>
+          <p>{{ book.synopsis || 'Nenhuma sinopse cadastrada para este livro.' }}</p>
+        </section>
+
+        <section class="posts-section">
+          <h2>Resenhas e posts</h2>
+
+          @if (posts.length === 0) {
+            <p class="status">Nenhum post sobre este livro ainda.</p>
+          } @else {
+            <div class="post-list">
+              @for (post of posts; track post.id) {
+                <article class="post-card">
+                  <h3>{{ post.title }}</h3>
+                  <p>{{ post.text }}</p>
+                  <span class="visibility">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
+                </article>
+              }
+            </div>
+          }
+        </section>
+      </div>
+    </section>
+  }
+</main>

@@ -5,19 +5,34 @@ import { BookRepository } from '../../core/ports/BookRepository';
 // Dados mocados para simular um banco de dados
 const books: Book[] = [
   {
-    id: '1',
-    title: 'O Cortiço',
-    author: 'Aluísio Azevedo',
+    id: 1,
+    name: 'O Cortiço',
+    isbn: '9788572326979',
+    publishingCompany: 'Editora Martin Claret',
+    writer: 'Aluisio Azevedo',
+    genre: 'Romance',
+    nPages: 320,
+    yearPublication: 1890,
   },
   {
-    id: '2',
-    title: 'Memórias Póstumas de Brás Cubas',
-    author: 'Machado de Assis',
+    id: 2,
+    name: 'Memorias Postumas de Bras Cubas',
+    isbn: '9788535910665',
+    publishingCompany: 'Companhia das Letras',
+    writer: 'Machado de Assis',
+    genre: 'Romance',
+    nPages: 256,
+    yearPublication: 1881,
   },
   {
-    id: '3',
-    title: 'Dom Casmurro',
-    author: 'Machado de Assis',
+    id: 3,
+    name: 'Dom Casmurro',
+    isbn: '9788535902776',
+    publishingCompany: 'Companhia das Letras',
+    writer: 'Machado de Assis',
+    genre: 'Romance',
+    nPages: 288,
+    yearPublication: 1899,
   },
 ];
 
@@ -27,7 +42,7 @@ export class InMemoryBookRepository implements BookRepository {
     return Promise.resolve(books);
   }
 
-  async findById(id: string): Promise<Book | null> {
+  async findById(id: number): Promise<Book | null> {
     const book = books.find(b => b.id === id);
     return Promise.resolve(book || null);
   }
