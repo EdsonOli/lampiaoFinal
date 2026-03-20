@@ -21,7 +21,7 @@ describe('CreateUser', () => {
       password: 'senha123',
     });
 
-    expect(user.id).toBe(1);
+    expect(user.id).toEqual(expect.any(String));
     expect(user.name).toBe('João Silva');
     expect(user.email).toBe('joao@example.com');
     expect(user.password).toBe('hashed:senha123');
@@ -45,11 +45,12 @@ describe('CreateUser', () => {
     ).rejects.toThrow('User already exists');
   });
 
-  it('should assign sequential ids to users', async () => {
+  it('should assign unique ids to users', async () => {
     const user1 = await sut.execute({ name: 'A', email: 'a@x.com', nickname: 'a', password: '1' });
     const user2 = await sut.execute({ name: 'B', email: 'b@x.com', nickname: 'b', password: '2' });
 
-    expect(user1.id).toBe(1);
-    expect(user2.id).toBe(2);
+    expect(user1.id).toEqual(expect.any(String));
+    expect(user2.id).toEqual(expect.any(String));
+    expect(user1.id).not.toBe(user2.id);
   });
 });

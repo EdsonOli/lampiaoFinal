@@ -13,16 +13,15 @@ const {
   createComment,
   deleteComment,
   getCommentById,
+  getPostById,
   listAllComments,
   listCommentsByPost,
   listCommentsByUser,
   updateComment,
 } = Container.useCases;
-const { comment: commentRepository, post: postRepository } = Container.repositories;
-const postVisibilityRepository = postRepository;
 
 async function canViewPostById(postId: string, currentUserId?: string): Promise<boolean> {
-  const post = await postVisibilityRepository.findById(postId);
+  const post = await getPostById.execute(postId);
   if (!post) {
     return false;
   }

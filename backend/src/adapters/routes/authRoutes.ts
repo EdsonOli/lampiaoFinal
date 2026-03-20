@@ -6,6 +6,7 @@ import { JwtTokenService } from '../services/JwtTokenService';
 import { authenticate, AuthenticatedRequest } from '../middlewares/authenticate';
 import { tokenBlacklistService } from '../services/TokenBlacklistService';
 import { auditLog } from '../services/AuditLogger';
+import { toPublicUserDTO } from '../presenters/UserPresenter';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeOptionalPlainText } from '../validation/sanitizers';
 import { loginSchema, registerSchema } from '../validation/schemas';
@@ -17,8 +18,7 @@ const refreshTokenService = new JwtTokenService({
 });
 
 // Get use cases from container (no direct instantiation)
-const { createUser, authenticateUser } = Container.useCases;
-const { user: userRepository } = Container.repositories;
+const { createUser, authenticateUser, getUserById } = Container.useCases;
 const { tokenService } = Container.services;
 
 async function issueSessionCookies(res: Response, user: { id: string; email: string }): Promise<void> {
@@ -35,16 +35,6 @@ async function issueSessionCookies(res: Response, user: { id: string; email: str
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
 }
 
-function sanitizeUser(user: { id: string; name: string; email: string; nickname: string; img?: string }) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    nickname: user.nickname,
-    img: user.img,
-  };
-}
-
 router.post('/register', registerRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const payload = parseOrThrow(registerSchema, req.body);
@@ -59,7 +49,7 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
 
     await auditLog('auth.register', { userId: user.id, email: user.email });
 
-    res.status(201).json(sanitizeUser(user));
+    res.status(201).json(toPublicUserDTO(user));
   } catch (error) {
     if (isValidationError(error)) {
       return res.status(400).json({ message: getValidationMessage(error) });
@@ -74,7 +64,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response, next
     const payload = parseOrThrow(loginSchema, req.body);
 
     const auth = await authenticateUser.execute({ email: payload.email, password: payload.password });
-    const user = await userRepository.findById(auth.userId);
+    const user = await getUserById.execute(auth.userId);
 
     if (user) {
       await issueSessionCookies(res, user);
@@ -82,7 +72,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response, next
     await auditLog('auth.login', { userId: auth.userId, email: payload.email });
 
     res.json({
-      user: user ? sanitizeUser(user) : null,
+      user: user ? toPublicUserDTO(user) : null,
     });
   } catch (error) {
     if (isValidationError(error)) {
@@ -104,7 +94,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const payload = await refreshTokenService.verify(refreshToken);
-    const user = await userRepository.findById(String(payload.sub));
+    const user = await getUserById.execute(String(payload.sub));
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid refresh token' });

@@ -1,4 +1,5 @@
 import { User } from '../domain/User';
+import { ConflictError, NotFoundError } from '../errors';
 import { PasswordHasher } from '../ports/PasswordHasher';
 import { UpdateUserInput, UserRepository } from '../ports/UserRepository';
 
@@ -11,13 +12,13 @@ export class UpdateUser {
   async execute(id: string, input: UpdateUserInput): Promise<User> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User not found');
     }
 
     if (input.email && input.email !== user.email) {
       const existingUser = await this.userRepository.findByEmail(input.email);
       if (existingUser) {
-        throw new Error('Email already in use');
+        throw new ConflictError('Email already in use');
       }
     }
 
@@ -31,7 +32,7 @@ export class UpdateUser {
     const updatedUser = await this.userRepository.update(id, updateData);
 
     if (!updatedUser) {
-      throw new Error('User not found');
+      throw new NotFoundError('User not found');
     }
 
     return updatedUser;

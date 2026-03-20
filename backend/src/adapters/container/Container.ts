@@ -17,21 +17,6 @@ export class Container {
   }
 
   /**
-   * Get infrastructure layer directly (only for middleware/entrypoints)
-   * DO NOT use in domain/application layers
-   */
-  static get infra() {
-    return infrastructure;
-  }
-
-  /**
-   * Convenient access to repositories
-   */
-  static get repositories() {
-    return infrastructure.repositories;
-  }
-
-  /**
    * Convenient access to services
    */
   static get services() {

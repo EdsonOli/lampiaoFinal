@@ -1,3 +1,4 @@
+import { NotFoundError } from '../errors';
 import { UserRepository } from '../ports/UserRepository';
 
 export class DeleteUser {
@@ -6,7 +7,7 @@ export class DeleteUser {
   async execute(id: string): Promise<void> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User not found');
     }
 
     await this.userRepository.delete(id);

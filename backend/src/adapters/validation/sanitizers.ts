@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
+import { ValidationError } from '../../core/errors';
 
 const allowedImageProtocols = new Set(['http:', 'https:']);
 const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'];
@@ -9,21 +10,21 @@ function validateImageUrl(urlValue: string, allowedHosts?: string[]): string {
   try {
     parsed = new URL(urlValue);
   } catch {
-    throw new Error('Invalid image URL');
+    throw new ValidationError('Invalid image URL');
   }
 
   if (!allowedImageProtocols.has(parsed.protocol)) {
-    throw new Error('Invalid image URL');
+    throw new ValidationError('Invalid image URL');
   }
 
   if (allowedHosts && allowedHosts.length > 0 && !allowedHosts.includes(parsed.hostname)) {
-    throw new Error('Invalid image URL');
+    throw new ValidationError('Invalid image URL');
   }
 
   const pathname = parsed.pathname.toLowerCase();
 
   if (!allowedImageExtensions.some((extension) => pathname.endsWith(extension))) {
-    throw new Error('Invalid image URL');
+    throw new ValidationError('Invalid image URL');
   }
 
   return parsed.toString();

@@ -1,6 +1,7 @@
 
 import { NextFunction, Request, Response, Router } from 'express';
 import { Container } from '../container';
+import { ValidationError } from '../../core/errors';
 import { authenticate } from '../middlewares/authenticate';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
@@ -9,13 +10,12 @@ import { createBookSchema } from '../validation/schemas';
 
 const router = Router();
 
-// Get use cases and repositories from container
+// Get use cases from container
 const {
   createBook,
   getBookById,
   listAllBooks,
 } = Container.useCases;
-const { book: bookRepository } = Container.repositories;
 
 // --- Definindo as rotas da API ---
 
@@ -106,8 +106,8 @@ router.post('/', authenticate, async (req: Request, res: Response, next: NextFun
       return res.status(400).json({ message: err.message || 'Invalid book payload' });
     }
 
-    if (err.message === 'Invalid image URL') {
-      return res.status(400).json({ message: 'Invalid image URL' });
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ message: error.message });
     }
 
     next(error);

@@ -1,6 +1,8 @@
 import { NextFunction, Response, Router } from 'express';
 import { Container } from '../container';
+import { ValidationError } from '../../core/errors';
 import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate';
+import { toPublicUserDTO } from '../presenters/UserPresenter';
 import { getAuthCookieOptions, getRefreshCookieOptions, AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../security/authCookie';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
@@ -11,17 +13,6 @@ const router = Router();
 
 // Get use cases from container
 const { getUserById, updateUser, deleteUser } = Container.useCases;
-const { user: userRepository } = Container.repositories;
-
-function sanitizeUser(user: { id: string; name: string; email: string; nickname: string; img?: string }) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    nickname: user.nickname,
-    img: user.img,
-  };
-}
 
 router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -35,7 +26,7 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(sanitizeUser(user));
+    res.json(toPublicUserDTO(user));
   } catch (error) {
     next(error);
   }
@@ -59,14 +50,14 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
 
     await auditLog('user.updateMe', { userId, updatedFields: Object.keys(payload) });
 
-    res.json(sanitizeUser(user));
+    res.json(toPublicUserDTO(user));
   } catch (error) {
     if (isValidationError(error)) {
       return res.status(400).json({ message: getValidationMessage(error) });
     }
 
-    if ((error as Error).message === 'Invalid image URL') {
-      return res.status(400).json({ message: 'Invalid image URL' });
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ message: error.message });
     }
 
     next(error);
@@ -102,7 +93,7 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(sanitizeUser(user));
+    res.json(toPublicUserDTO(user));
   } catch (error) {
     next(error);
   }

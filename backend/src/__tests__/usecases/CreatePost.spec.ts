@@ -3,6 +3,8 @@ import { InMemoryBookRepository } from '../../adapters/repositories/InMemoryBook
 import { InMemoryPostRepository } from '../fakes/InMemoryPostRepository';
 
 describe('CreatePost', () => {
+  const BOOK_ID_1 = '550e8400-e29b-41d4-a716-446655440000';
+  const BOOK_ID_2 = '550e8400-e29b-41d4-a716-446655440001';
   let bookRepo: InMemoryBookRepository;
   let postRepo: InMemoryPostRepository;
   let sut: CreatePost;
@@ -17,14 +19,14 @@ describe('CreatePost', () => {
     const post = await sut.execute({
       title: 'Minha resenha',
       text: 'O livro é incrível.',
-      userId: 1,
-      bookId: 1, // "O Cortiço" — existe no InMemoryBookRepository
+      userId: 'user-1',
+      bookId: BOOK_ID_1,
     });
 
-    expect(post.id).toBe(1);
+    expect(post.id).toEqual(expect.any(String));
     expect(post.title).toBe('Minha resenha');
-    expect(post.userId).toBe(1);
-    expect(post.bookId).toBe(1);
+    expect(post.userId).toBe('user-1');
+    expect(post.bookId).toBe(BOOK_ID_1);
   });
 
   it('should throw when bookId does not exist', async () => {
@@ -32,8 +34,8 @@ describe('CreatePost', () => {
       sut.execute({
         title: 'Post inválido',
         text: 'Livro inexistente.',
-        userId: 1,
-        bookId: 999,
+        userId: 'user-1',
+        bookId: 'book-missing',
       })
     ).rejects.toThrow('Book not found');
   });
@@ -42,8 +44,8 @@ describe('CreatePost', () => {
     const post = await sut.execute({
       title: 'Post público',
       text: 'Texto.',
-      userId: 1,
-      bookId: 2,
+      userId: 'user-1',
+      bookId: BOOK_ID_2,
     });
 
     expect(post.isItPublic).toBe(true);
@@ -53,8 +55,8 @@ describe('CreatePost', () => {
     const post = await sut.execute({
       title: 'Post privado',
       text: 'Texto.',
-      userId: 1,
-      bookId: 1,
+      userId: 'user-1',
+      bookId: BOOK_ID_1,
       isItPublic: false,
     });
 

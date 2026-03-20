@@ -13,6 +13,7 @@ import { CreateUser } from '../../core/usecases/CreateUser';
 import { UpdateUser } from '../../core/usecases/UpdateUser';
 import { DeleteUser } from '../../core/usecases/DeleteUser';
 import { GetUserById } from '../../core/usecases/GetUserById';
+import { ListAllUsers } from '../../core/usecases/ListAllUsers';
 
 // Post use cases
 import { CreatePost } from '../../core/usecases/CreatePost';
@@ -63,6 +64,7 @@ const createUseCases = () => ({
   ),
   deleteUser: new DeleteUser(infrastructure.repositories.user),
   getUserById: new GetUserById(infrastructure.repositories.user),
+  listAllUsers: new ListAllUsers(infrastructure.repositories.user),
 
   // Post
   createPost: new CreatePost(

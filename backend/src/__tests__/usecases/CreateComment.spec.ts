@@ -6,6 +6,7 @@ describe('CreateComment', () => {
   let commentRepo: InMemoryCommentRepository;
   let postRepo: InMemoryPostRepository;
   let sut: CreateComment;
+  let postId: string;
 
   beforeEach(async () => {
     commentRepo = new InMemoryCommentRepository();
@@ -13,26 +14,27 @@ describe('CreateComment', () => {
     sut = new CreateComment(commentRepo, postRepo);
 
     // Cria um post de referência diretamente no repositório
-    await postRepo.create({
+    const post = await postRepo.create({
       title: 'Post de teste',
       text: 'Conteúdo.',
-      userId: 1,
-      bookId: 1,
+      userId: 'user-1',
+      bookId: 'book-1',
     });
+    postId = post.id;
   });
 
   it('should create a comment on a valid post', async () => {
     const comment = await sut.execute({
       title: 'Ótimo post!',
       text: 'Concordo com tudo.',
-      userId: 2,
-      postId: 1,
+      userId: 'user-2',
+      postId,
     });
 
-    expect(comment.id).toBe(1);
+    expect(comment.id).toEqual(expect.any(String));
     expect(comment.title).toBe('Ótimo post!');
-    expect(comment.postId).toBe(1);
-    expect(comment.userId).toBe(2);
+    expect(comment.postId).toBe(postId);
+    expect(comment.userId).toBe('user-2');
   });
 
   it('should throw when postId does not exist', async () => {
@@ -40,17 +42,17 @@ describe('CreateComment', () => {
       sut.execute({
         title: 'Comentário inválido',
         text: 'Post inexistente.',
-        userId: 1,
-        postId: 999,
+        userId: 'user-1',
+        postId: 'post-missing',
       })
     ).rejects.toThrow('Post not found');
   });
 
   it('should allow multiple comments on the same post', async () => {
-    await sut.execute({ title: 'C1', text: 'Texto 1', userId: 1, postId: 1 });
-    await sut.execute({ title: 'C2', text: 'Texto 2', userId: 2, postId: 1 });
+    await sut.execute({ title: 'C1', text: 'Texto 1', userId: 'user-1', postId });
+    await sut.execute({ title: 'C2', text: 'Texto 2', userId: 'user-2', postId });
 
-    const comments = await commentRepo.findByPostId(1);
+    const comments = await commentRepo.findByPostId(postId);
     expect(comments).toHaveLength(2);
   });
 });

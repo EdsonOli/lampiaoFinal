@@ -8,7 +8,7 @@ import { createPostSchema, updatePostSchema } from '../validation/schemas';
 
 const router = Router();
 
-// Get use cases and repositories from container
+// Get use cases from container
 const {
   createPost,
   deletePost,
@@ -18,7 +18,6 @@ const {
   listPostsByUser,
   updatePost,
 } = Container.useCases;
-const { post: postRepository, book: bookRepository } = Container.repositories;
 
 function canViewPost(post: { isItPublic: boolean; userId: string }, currentUserId?: string): boolean {
   return post.isItPublic || (currentUserId !== undefined && post.userId === currentUserId);

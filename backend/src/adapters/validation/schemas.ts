@@ -82,6 +82,23 @@ export const updateCommentSchema = z.object({
   message: 'At least one field must be provided',
 });
 
+const notebookStatusSchema = z.enum(['Lido', 'Lendo', 'Quero ler']);
+
+export const createNotebookSchema = z.object({
+  bookId: z.string().uuid(),
+  grade: z.coerce.number().int().min(0).max(5).optional(),
+  status: notebookStatusSchema,
+  favorite: z.boolean().optional(),
+});
+
+export const updateNotebookSchema = z.object({
+  grade: z.coerce.number().int().min(0).max(5).optional(),
+  status: notebookStatusSchema.optional(),
+  favorite: z.boolean().optional(),
+}).refine(payload => payload.grade !== undefined || payload.status !== undefined || payload.favorite !== undefined, {
+  message: 'At least one field must be provided',
+});
+
 export const updateMeSchema = z.object({
   name: optionalTrimmedString(2, 120),
   email: z.preprocess(

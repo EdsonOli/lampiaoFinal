@@ -7,8 +7,7 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  // Use statusCode from AppError if available, otherwise default to 500
-  const statusCode = (err as AppError & { statusCode: number }).statusCode ?? 500;
+  const statusCode = err instanceof AppError ? err.statusCode : 500;
   const message = err.message || 'Internal server error';
 
   res.status(statusCode).json({

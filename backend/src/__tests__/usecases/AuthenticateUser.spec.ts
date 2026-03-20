@@ -9,6 +9,7 @@ describe('AuthenticateUser', () => {
   let hasher: FakePasswordHasher;
   let tokenService: FakeTokenService;
   let sut: AuthenticateUser;
+  let userId: string;
 
   beforeEach(async () => {
     userRepo = new InMemoryUserRepository();
@@ -18,19 +19,20 @@ describe('AuthenticateUser', () => {
 
     // Registra usuário de teste via use case (garante senha hasheada)
     const createUser = new CreateUser(userRepo, hasher);
-    await createUser.execute({
+    const user = await createUser.execute({
       name: 'Maria Joaquina',
       email: 'maria@example.com',
       nickname: 'maria',
       password: 'senha123',
     });
+    userId = user.id;
   });
 
   it('should return a token and userId on valid credentials', async () => {
     const result = await sut.execute({ email: 'maria@example.com', password: 'senha123' });
 
     expect(result.token).toContain('token:');
-    expect(result.userId).toBe(1);
+    expect(result.userId).toBe(userId);
   });
 
   it('should throw on non-existent email', async () => {
@@ -49,7 +51,7 @@ describe('AuthenticateUser', () => {
     const result = await sut.execute({ email: 'maria@example.com', password: 'senha123' });
     const payload = await tokenService.verify(result.token);
 
-    expect(payload.sub).toBe('1');
+    expect(payload.sub).toBe(userId);
     expect(payload.email).toBe('maria@example.com');
   });
 });

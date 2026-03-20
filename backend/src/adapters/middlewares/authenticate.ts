@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME, getAuthCookieOptions } from '../security/authCookie';
 import { JwtTokenService } from '../services/JwtTokenService';
-import { SequelizeUserRepository } from '../repositories/SequelizeUserRepository';
+import { Container } from '../container';
 import { tokenBlacklistService } from '../services/TokenBlacklistService';
 
 const tokenService = new JwtTokenService();
@@ -9,7 +9,7 @@ const refreshTokenService = new JwtTokenService({
   secret: process.env.JWT_REFRESH_SECRET || `${process.env.JWT_SECRET || 'lampiao-dev-secret'}:refresh`,
   expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as string,
 });
-const userRepository = new SequelizeUserRepository();
+const { getUserById } = Container.useCases;
 
 async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedRequest['auth'] | null> {
   const authHeader = req.headers.authorization;
@@ -28,7 +28,7 @@ async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedR
     try {
       const payload = await tokenService.verify(token);
       const userId = String(payload.sub);
-      const user = await userRepository.findById(userId);
+      const user = await getUserById.execute(userId);
 
       if (user) {
         return {
@@ -48,7 +48,7 @@ async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedR
 
   const refreshPayload = await refreshTokenService.verify(refreshToken);
   const userId = String(refreshPayload.sub);
-  const user = await userRepository.findById(userId);
+  const user = await getUserById.execute(userId);
 
   if (!user) {
     return null;
