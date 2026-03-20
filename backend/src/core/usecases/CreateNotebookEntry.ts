@@ -1,6 +1,7 @@
 import { Notebook } from '../domain/Notebook';
 import { BookRepository } from '../ports/BookRepository';
 import { CreateNotebookInput, NotebookRepository } from '../ports/NotebookRepository';
+import { NotFoundError, ConflictError } from '../errors';
 
 export class CreateNotebookEntry {
   constructor(
@@ -11,12 +12,12 @@ export class CreateNotebookEntry {
   async execute(input: CreateNotebookInput): Promise<Notebook> {
     const book = await this.bookRepository.findById(input.bookId);
     if (!book) {
-      throw new Error('Book not found');
+      throw new NotFoundError('Book not found');
     }
 
     const existingNotebook = await this.notebookRepository.findByUserAndBook(input.userId, input.bookId);
     if (existingNotebook) {
-      throw new Error('Notebook entry already exists');
+      throw new ConflictError('Notebook entry already exists');
     }
 
     return this.notebookRepository.create(input);

@@ -33,22 +33,22 @@ export class SequelizeCommentRepository implements CommentRepository {
     return mapComment(comment);
   }
 
-  async findById(id: number): Promise<Comment | null> {
+  async findById(id: string): Promise<Comment | null> {
     const comment = await CommentModel.findByPk(id);
     return comment ? mapComment(comment) : null;
   }
 
-  async findByPostId(postId: number): Promise<Comment[]> {
+  async findByPostId(postId: string): Promise<Comment[]> {
     const comments = await CommentModel.findAll({ where: { post_id: postId } });
     return comments.map(mapComment);
   }
 
-  async findByUserId(userId: number): Promise<Comment[]> {
+  async findByUserId(userId: string): Promise<Comment[]> {
     const comments = await CommentModel.findAll({ where: { user_id: userId } });
     return comments.map(mapComment);
   }
 
-  async update(id: number, input: UpdateCommentInput): Promise<Comment | null> {
+  async update(id: string, input: UpdateCommentInput): Promise<Comment | null> {
     const comment = await CommentModel.findByPk(id);
     if (!comment) {
       return null;
@@ -62,7 +62,7 @@ export class SequelizeCommentRepository implements CommentRepository {
     return mapComment(comment);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await CommentModel.destroy({ where: { id } });
   }
 }

@@ -1,6 +1,7 @@
 import { PasswordHasher } from '../ports/PasswordHasher';
 import { TokenService } from '../ports/TokenService';
 import { UserRepository } from '../ports/UserRepository';
+import { ValidationError } from '../errors';
 
 const DUMMY_BCRYPT_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8sV1QJQ6Q0imeISFRCGDpa2BkLomqK';
 
@@ -11,7 +12,7 @@ export interface AuthenticateUserInput {
 
 export interface AuthenticateUserOutput {
   token: string;
-  userId: number;
+  userId: string;
 }
 
 export class AuthenticateUser {
@@ -27,7 +28,7 @@ export class AuthenticateUser {
     const passwordsMatch = await this.passwordHasher.compare(input.password, hashedPassword);
 
     if (!user || !passwordsMatch) {
-      throw new Error('Invalid credentials');
+      throw new ValidationError('Invalid credentials');
     }
 
     const token = await this.tokenService.sign({

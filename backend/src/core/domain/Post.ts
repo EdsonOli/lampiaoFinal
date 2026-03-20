@@ -1,10 +1,10 @@
 export interface Post {
-  id: number;
+  id: string;
   title: string;
   text: string;
   isItPublic: boolean;
-  userId: number;
-  bookId: number;
+  userId: string;
+  bookId: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

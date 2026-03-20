@@ -4,7 +4,7 @@ import { CommentRepository } from '../ports/CommentRepository';
 export class GetCommentById {
   constructor(private readonly commentRepository: CommentRepository) {}
 
-  async execute(id: number): Promise<Comment | null> {
+  async execute(id: string): Promise<Comment | null> {
     return this.commentRepository.findById(id);
   }
 }

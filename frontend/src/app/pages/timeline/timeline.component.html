@@ -4,32 +4,54 @@
   <section class="timeline-hero">
     <div class="timeline-copy">
       <p class="eyebrow">Comunidade Lampião</p>
-      <h1>Últimos lampiões acesos</h1>
+      <h1>Ultimos lampioes acesos</h1>
       <p class="lead">
-        O visual volta para a atmosfera do projeto original: capas em destaque, tons terrosos e um mural que parece estante viva.
+        Acompanhe as conversas mais recentes da comunidade, descubra quem esta lendo com voce e mantenha vivas as teorias, impressões e caminhos de leitura.
       </p>
+      <div class="hero-actions">
+        <span class="hero-chip">Mural da comunidade</span>
+        <span class="hero-chip hero-chip-secondary">Leitura compartilhada</span>
+      </div>
     </div>
     <img src="/img/timeline-banner.png" alt="Banner da timeline" class="hero-art" />
   </section>
 
   <section class="timeline-content">
     @if (loading) {
-      <p class="status">Carregando posts...</p>
+      <div class="status-card">
+        <p class="status-kicker">Preparando o mural</p>
+        <p class="status">Carregando posts da comunidade...</p>
+      </div>
     } @else if (error) {
-      <p class="status error">{{ error }}</p>
+      <div class="status-card status-card-error">
+        <p class="status-kicker">Algo saiu do rumo</p>
+        <p class="status error">{{ error }}</p>
+      </div>
     } @else if (posts.length === 0) {
-      <p class="status">Nenhum post ainda.</p>
+      <div class="status-card status-card-empty">
+        <p class="status-kicker">O espaco ainda esta silencioso</p>
+        <p class="status">Nenhum post ainda. Este pode ser um bom momento para acender a primeira conversa.</p>
+      </div>
     } @else {
-      <div class="feed-label">Mural da comunidade</div>
+      <div class="feed-head">
+        <div>
+          <div class="feed-label">Mural da comunidade</div>
+          <p class="feed-description">Leituras, opinioes e teorias recentes de quem esta reunido em torno dos livros.</p>
+        </div>
+        <div class="feed-count">{{ posts.length }} post{{ posts.length === 1 ? '' : 's' }}</div>
+      </div>
 
       <div class="post-feed">
         @for (post of posts; track post.id) {
           <article class="post-card">
-            <div class="post-book-pill">Livro #{{ post.bookId }}</div>
+            <header class="post-card-header">
+              <div class="post-book-pill">Livro #{{ post.bookId }}</div>
+              <span class="tag">{{ post.isItPublic ? 'Publico' : 'Privado' }}</span>
+            </header>
             <h2>{{ post.title }}</h2>
             <p>{{ post.text }}</p>
             <footer>
-              <span class="tag">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
+              <span class="post-meta">Leitura em circulacao</span>
             </footer>
           </article>
         }

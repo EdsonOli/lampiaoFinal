@@ -1,10 +1,7 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import { AuthenticateUser } from '../../core/usecases/AuthenticateUser';
-import { CreateUser } from '../../core/usecases/CreateUser';
+import { Container } from '../container';
 import { loginRateLimiter, registerRateLimiter } from '../middlewares/rateLimiters';
-import { SequelizeUserRepository } from '../repositories/SequelizeUserRepository';
 import { getAuthCookieOptions, getRefreshCookieOptions, AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../security/authCookie';
-import { BcryptPasswordHasher } from '../services/BcryptPasswordHasher';
 import { JwtTokenService } from '../services/JwtTokenService';
 import { authenticate, AuthenticatedRequest } from '../middlewares/authenticate';
 import { tokenBlacklistService } from '../services/TokenBlacklistService';
@@ -14,17 +11,17 @@ import { sanitizeOptionalPlainText } from '../validation/sanitizers';
 import { loginSchema, registerSchema } from '../validation/schemas';
 
 const router = Router();
-const userRepository = new SequelizeUserRepository();
-const passwordHasher = new BcryptPasswordHasher();
-const tokenService = new JwtTokenService();
 const refreshTokenService = new JwtTokenService({
   secret: process.env.JWT_REFRESH_SECRET || `${process.env.JWT_SECRET || 'lampiao-dev-secret'}:refresh`,
   expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as string,
 });
-const createUser = new CreateUser(userRepository, passwordHasher);
-const authenticateUser = new AuthenticateUser(userRepository, passwordHasher, tokenService);
 
-async function issueSessionCookies(res: Response, user: { id: number; email: string }): Promise<void> {
+// Get use cases from container (no direct instantiation)
+const { createUser, authenticateUser } = Container.useCases;
+const { user: userRepository } = Container.repositories;
+const { tokenService } = Container.services;
+
+async function issueSessionCookies(res: Response, user: { id: string; email: string }): Promise<void> {
   const accessToken = await tokenService.sign({
     sub: String(user.id),
     email: user.email,
@@ -38,7 +35,7 @@ async function issueSessionCookies(res: Response, user: { id: number; email: str
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions());
 }
 
-function sanitizeUser(user: { id: number; name: string; email: string; nickname: string; img?: string }) {
+function sanitizeUser(user: { id: string; name: string; email: string; nickname: string; img?: string }) {
   return {
     id: user.id,
     name: user.name,
@@ -107,7 +104,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const payload = await refreshTokenService.verify(refreshToken);
-    const user = await userRepository.findById(Number(payload.sub));
+    const user = await userRepository.findById(String(payload.sub));
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid refresh token' });

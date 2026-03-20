@@ -1,6 +1,7 @@
 import { User } from '../domain/User';
 import { PasswordHasher } from '../ports/PasswordHasher';
 import { CreateUserInput, UserRepository } from '../ports/UserRepository';
+import { ConflictError } from '../errors';
 
 export class CreateUser {
   constructor(
@@ -11,7 +12,7 @@ export class CreateUser {
   async execute(input: CreateUserInput): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(input.email);
     if (existingUser) {
-      throw new Error('User already exists');
+      throw new ConflictError('User already exists');
     }
 
     const hashedPassword = await this.passwordHasher.hash(input.password);

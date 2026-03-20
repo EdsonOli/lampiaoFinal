@@ -20,7 +20,7 @@ export class SequelizeBookRepository implements BookRepository {
     }));
   }
 
-  async findById(id: number): Promise<Book | null> {
+  async findById(id: string): Promise<Book | null> {
     const book = await BookModel.findByPk(id);
     if (book) {
       return {

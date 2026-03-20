@@ -1,15 +1,15 @@
 import { User } from '../../core/domain/User';
 import { CreateUserInput, UpdateUserInput, UserRepository } from '../../core/ports/UserRepository';
+import { randomUUID } from 'crypto';
 
 export class InMemoryUserRepository implements UserRepository {
   private users: User[] = [];
-  private counter = 1;
 
   async findAll(): Promise<User[]> {
     return [...this.users];
   }
 
-  async findById(id: number): Promise<User | null> {
+  async findById(id: string): Promise<User | null> {
     return this.users.find(u => u.id === id) ?? null;
   }
 
@@ -18,19 +18,19 @@ export class InMemoryUserRepository implements UserRepository {
   }
 
   async create(input: CreateUserInput): Promise<User> {
-    const user: User = { id: this.counter++, role: 'user', ...input };
+    const user: User = { id: randomUUID(), role: 'user', ...input };
     this.users.push(user);
     return user;
   }
 
-  async update(id: number, input: UpdateUserInput): Promise<User | null> {
+  async update(id: string, input: UpdateUserInput): Promise<User | null> {
     const idx = this.users.findIndex(u => u.id === id);
     if (idx === -1) return null;
     this.users[idx] = { ...this.users[idx], ...input };
     return this.users[idx];
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     this.users = this.users.filter(u => u.id !== id);
   }
 }

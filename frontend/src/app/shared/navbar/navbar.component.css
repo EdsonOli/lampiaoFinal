@@ -6,14 +6,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(90deg, rgba(34, 75, 9, 0.88), rgba(140, 76, 14, 0.9));
-  box-shadow: 0 10px 30px rgba(34, 75, 9, 0.18);
+  padding: 0.9rem 1.5rem;
+  background: var(--gradient-brand);
+  border-bottom: 1px solid rgba(255, 243, 225, 0.18);
+  box-shadow: var(--lampiao-shadow-soft);
+  backdrop-filter: blur(10px);
 }
 
 .brand {
   display: flex;
   align-items: center;
+  min-height: 44px;
 }
 
 .brand-logo {
@@ -36,16 +39,20 @@
   align-items: center;
   gap: 0.55rem;
   min-height: 44px;
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 0.95rem;
   border-radius: 999px;
   text-decoration: none;
-  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  font-family: var(--font-brand);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-link,
 .btn-logout {
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 248, 239, 0.18);
+  background: rgba(255, 250, 242, 0.08);
   color: #fff;
 }
 
@@ -60,7 +67,8 @@
 .nav-link.active,
 .btn-logout:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 248, 239, 0.18);
+  box-shadow: 0 8px 18px rgba(34, 20, 9, 0.18);
 }
 
 .btn-logout {
@@ -68,19 +76,28 @@
 }
 
 .btn-register {
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: #faf9f5;
-  color: #8c4c0e;
+  border: 1px solid rgba(255, 243, 225, 0.7);
+  background: linear-gradient(180deg, #fffdf8 0%, #f5e7cd 100%);
+  color: var(--color-brand-primary);
   font-weight: 700;
+  box-shadow: 0 10px 24px rgba(34, 20, 9, 0.18);
 }
 
 .btn-register:hover {
   transform: translateY(-1px);
-  background: #fff;
+  background: linear-gradient(180deg, #fff 0%, #f7ecd6 100%);
 }
 
 .guest-link {
   padding-inline: 1rem;
+}
+
+.brand:focus-visible,
+.nav-link:focus-visible,
+.btn-logout:focus-visible,
+.btn-register:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
 }
 
 @media (max-width: 720px) {
@@ -93,9 +110,16 @@
   .links {
     width: 100%;
     justify-content: flex-start;
+    gap: 0.65rem;
   }
 
   .brand-logo {
     width: 132px;
+  }
+
+  .nav-link,
+  .btn-logout,
+  .btn-register {
+    justify-content: center;
   }
 }

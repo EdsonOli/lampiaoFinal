@@ -33,22 +33,22 @@ export class SequelizePostRepository implements PostRepository {
     return mapPost(post);
   }
 
-  async findById(id: number): Promise<Post | null> {
+  async findById(id: string): Promise<Post | null> {
     const post = await PostModel.findByPk(id);
     return post ? mapPost(post) : null;
   }
 
-  async findByUserId(userId: number): Promise<Post[]> {
+  async findByUserId(userId: string): Promise<Post[]> {
     const posts = await PostModel.findAll({ where: { user_id: userId } });
     return posts.map(mapPost);
   }
 
-  async findByBookId(bookId: number): Promise<Post[]> {
+  async findByBookId(bookId: string): Promise<Post[]> {
     const posts = await PostModel.findAll({ where: { book_id: bookId } });
     return posts.map(mapPost);
   }
 
-  async update(id: number, input: UpdatePostInput): Promise<Post | null> {
+  async update(id: string, input: UpdatePostInput): Promise<Post | null> {
     const post = await PostModel.findByPk(id);
     if (!post) {
       return null;
@@ -63,7 +63,7 @@ export class SequelizePostRepository implements PostRepository {
     return mapPost(post);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await PostModel.destroy({ where: { id } });
   }
 }

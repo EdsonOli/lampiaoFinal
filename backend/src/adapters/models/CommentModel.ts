@@ -2,18 +2,18 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database';
 
 export class Comment extends Model<any, any> {
-  public id!: number;
+  public id!: string;
   public title!: string;
   public text!: string;
-  public user_id!: number;
-  public post_id!: number;
+  public user_id!: string;
+  public post_id!: string;
 }
 
 Comment.init(
   {
     id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     title: {
@@ -25,11 +25,11 @@ Comment.init(
       allowNull: false,
     },
     user_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
     },
     post_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
     },
   },

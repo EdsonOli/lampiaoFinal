@@ -1,9 +1,9 @@
 export type ReadingStatus = 'Lido' | 'Lendo' | 'Quero ler';
 
 export interface Notebook {
-  id: number;
-  userId: number;
-  bookId: number;
+  id: string;
+  userId: string;
+  bookId: string;
   grade?: number;
   status: ReadingStatus;
   favorite: boolean;

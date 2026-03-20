@@ -1,19 +1,17 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import { CreateNotebookEntry } from '../../core/usecases/CreateNotebookEntry';
-import { DeleteNotebookEntry } from '../../core/usecases/DeleteNotebookEntry';
-import { ListUserNotebooks } from '../../core/usecases/ListUserNotebooks';
-import { UpdateNotebookEntry } from '../../core/usecases/UpdateNotebookEntry';
+import { Container } from '../container';
 import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate';
-import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
-import { SequelizeNotebookRepository } from '../repositories/SequelizeNotebookRepository';
 
 const router = Router();
-const notebookRepository = new SequelizeNotebookRepository();
-const bookRepository = new SequelizeBookRepository();
-const createNotebookEntry = new CreateNotebookEntry(notebookRepository, bookRepository);
-const listUserNotebooks = new ListUserNotebooks(notebookRepository);
-const updateNotebookEntry = new UpdateNotebookEntry(notebookRepository);
-const deleteNotebookEntry = new DeleteNotebookEntry(notebookRepository);
+
+// Get use cases and repositories from container
+const {
+  createNotebookEntry,
+  deleteNotebookEntry,
+  listUserNotebooks,
+  updateNotebookEntry,
+} = Container.useCases;
+const { notebook: notebookRepository, book: bookRepository } = Container.repositories;
 const validStatuses = new Set(['Lido', 'Lendo', 'Quero ler']);
 
 function isValidStatus(value: unknown): value is 'Lido' | 'Lendo' | 'Quero ler' {
@@ -68,14 +66,14 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
 router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const { grade, status, favorite } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid notebook id' });
     }
 
@@ -102,13 +100,13 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid notebook id' });
     }
 

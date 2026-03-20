@@ -19,9 +19,9 @@ export interface UpdateUserInput {
 
 export interface UserRepository {
   findAll(): Promise<User[]>;
-  findById(id: number): Promise<User | null>;
+  findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
   create(input: CreateUserInput): Promise<User>;
-  update(id: number, input: UpdateUserInput): Promise<User | null>;
-  delete(id: number): Promise<void>;
+  update(id: string, input: UpdateUserInput): Promise<User | null>;
+  delete(id: string): Promise<void>;
 }

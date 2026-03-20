@@ -26,8 +26,8 @@ router.get('/books', async (req, res) => {
 // Rota para obter um livro por ID
 router.get('/books/:id', async (req, res) => {
     try {
-        const id = Number(req.params.id);
-        if (Number.isNaN(id)) {
+        const id = String(req.params.id);
+        if (!id) {
             return res.status(400).send('Invalid book id');
         }
 

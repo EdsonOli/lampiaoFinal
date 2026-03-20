@@ -1,8 +1,8 @@
 import { Notebook } from '../domain/Notebook';
 
 export interface CreateNotebookInput {
-  userId: number;
-  bookId: number;
+  userId: string;
+  bookId: string;
   grade?: number;
   status: Notebook['status'];
   favorite?: boolean;
@@ -16,11 +16,11 @@ export interface UpdateNotebookInput {
 
 export interface NotebookRepository {
   findAll(): Promise<Notebook[]>;
-  findById(id: number): Promise<Notebook | null>;
-  findByUserId(userId: number): Promise<Notebook[]>;
-  findByBookId(bookId: number): Promise<Notebook[]>;
-  findByUserAndBook(userId: number, bookId: number): Promise<Notebook | null>;
+  findById(id: string): Promise<Notebook | null>;
+  findByUserId(userId: string): Promise<Notebook[]>;
+  findByBookId(bookId: string): Promise<Notebook[]>;
+  findByUserAndBook(userId: string, bookId: string): Promise<Notebook | null>;
   create(input: CreateNotebookInput): Promise<Notebook>;
-  update(id: number, input: UpdateNotebookInput): Promise<Notebook | null>;
-  delete(id: number): Promise<void>;
+  update(id: string, input: UpdateNotebookInput): Promise<Notebook | null>;
+  delete(id: string): Promise<void>;
 }

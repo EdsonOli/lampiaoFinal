@@ -1,24 +1,19 @@
 import { NextFunction, Response, Router } from 'express';
-import { DeleteUser } from '../../core/usecases/DeleteUser';
-import { GetUserById } from '../../core/usecases/GetUserById';
-import { UpdateUser } from '../../core/usecases/UpdateUser';
+import { Container } from '../container';
 import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate';
-import { SequelizeUserRepository } from '../repositories/SequelizeUserRepository';
 import { getAuthCookieOptions, getRefreshCookieOptions, AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../security/authCookie';
-import { BcryptPasswordHasher } from '../services/BcryptPasswordHasher';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeOptionalPlainText, sanitizeProfileImageUrl } from '../validation/sanitizers';
 import { updateMeSchema } from '../validation/schemas';
 
 const router = Router();
-const userRepository = new SequelizeUserRepository();
-const passwordHasher = new BcryptPasswordHasher();
-const getUserById = new GetUserById(userRepository);
-const updateUser = new UpdateUser(userRepository, passwordHasher);
-const deleteUser = new DeleteUser(userRepository);
 
-function sanitizeUser(user: { id: number; name: string; email: string; nickname: string; img?: string }) {
+// Get use cases from container
+const { getUserById, updateUser, deleteUser } = Container.useCases;
+const { user: userRepository } = Container.repositories;
+
+function sanitizeUser(user: { id: string; name: string; email: string; nickname: string; img?: string }) {
   return {
     id: user.id,
     name: user.name,
@@ -97,8 +92,8 @@ router.delete('/me', authenticate, async (req: AuthenticatedRequest, res: Respon
 
 router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid user id' });
     }
 

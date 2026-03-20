@@ -4,7 +4,7 @@ import { NotebookRepository } from '../ports/NotebookRepository';
 export class ListUserNotebooks {
   constructor(private readonly notebookRepository: NotebookRepository) {}
 
-  async execute(userId: number): Promise<Notebook[]> {
+  async execute(userId: string): Promise<Notebook[]> {
     return this.notebookRepository.findByUserId(userId);
   }
 }

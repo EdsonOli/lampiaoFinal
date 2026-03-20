@@ -2,43 +2,54 @@
 
 <main class="profile-page">
   @if (loading && !user) {
-    <p class="status">Carregando perfil...</p>
+    <div class="status-card">
+      <p class="status-kicker">Preparando seu canto de leitura</p>
+      <p class="status">Carregando perfil...</p>
+    </div>
   } @else if (user) {
     <section class="profile-hero">
       <div class="hero-surface">
-        <div class="perfil">
-          @if (user.img) {
-            <img [src]="user.img" [alt]="user.name" />
-          } @else {
-            <div class="avatar-fallback">{{ user.name[0] | uppercase }}</div>
-          }
-          <p id="name">{{ user.name }}</p>
-          <p id="nickname">&#64;{{ user.nickname }}</p>
-          <p class="email">{{ user.email }}</p>
+        <div class="hero-main">
+          <div class="perfil">
+            @if (user.img) {
+              <img [src]="user.img" [alt]="user.name" />
+            } @else {
+              <div class="avatar-fallback">{{ user.name[0] | uppercase }}</div>
+            }
+
+            <div class="profile-copy">
+              <p class="eyebrow">Seu abrigo no Lampião</p>
+              <p id="name">{{ user.name }}</p>
+              <p id="nickname">&#64;{{ user.nickname }}</p>
+              <p class="email">{{ user.email }}</p>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <button class="btn-edit" type="button" (click)="toggleEdit()">
+              {{ editMode ? 'Cancelar edição' : 'Editar perfil' }}
+            </button>
+          </div>
         </div>
 
         <div class="status-geral">
           <div class="status-box">
-            <h2>Lidos</h2>
-            <h2 id="quantity">{{ statusCounts['Lido'] }}</h2>
+            <p>Lidos</p>
+            <strong>{{ statusCounts['Lido'] }}</strong>
           </div>
           <div class="status-box">
-            <h2>Lendo</h2>
-            <h2 id="quantity">{{ statusCounts['Lendo'] }}</h2>
+            <p>Lendo</p>
+            <strong>{{ statusCounts['Lendo'] }}</strong>
           </div>
           <div class="status-box">
-            <h2>Quero ler</h2>
-            <h2 id="quantity">{{ statusCounts['Quero ler'] }}</h2>
+            <p>Quero ler</p>
+            <strong>{{ statusCounts['Quero ler'] }}</strong>
           </div>
           <div class="status-box">
-            <h2>Favoritos</h2>
-            <h2 id="quantity">{{ favoriteCount }}</h2>
+            <p>Favoritos</p>
+            <strong>{{ favoriteCount }}</strong>
           </div>
         </div>
-
-        <button class="btn-edit" (click)="toggleEdit()">
-          {{ editMode ? 'Cancelar edição' : 'Editar perfil' }}
-        </button>
       </div>
     </section>
 
@@ -46,31 +57,57 @@
       <section class="edit-form">
         <div class="modal-editar-user">
           <div class="modal-header">
-            <h3>Editar Perfil</h3>
-            <button type="button" class="close" (click)="toggleEdit()">X</button>
+            <div>
+              <p class="eyebrow">Atualize sua presença</p>
+              <h3>Editar perfil</h3>
+            </div>
+            <button type="button" class="close" (click)="toggleEdit()" aria-label="Fechar edição">X</button>
           </div>
           <div class="modal-body">
             <form [formGroup]="form" (ngSubmit)="saveProfile()">
-              <input type="text" formControlName="name" placeholder="Seu nome" />
-              <input type="email" formControlName="email" placeholder="Email" />
-              <input type="text" formControlName="nickname" placeholder="Nickname" />
-              <input type="text" formControlName="img" placeholder="URL da foto de perfil" />
-              <input type="password" formControlName="password" placeholder="Senha" />
-              <input type="password" formControlName="passwordConfirm" placeholder="Confirme a senha" />
+              <label>
+                <span>Nome</span>
+                <input type="text" formControlName="name" placeholder="Seu nome" />
+              </label>
+              <label>
+                <span>Email</span>
+                <input type="email" formControlName="email" placeholder="voce@exemplo.com" />
+              </label>
+              <label>
+                <span>Nickname</span>
+                <input type="text" formControlName="nickname" placeholder="Como voce aparece na comunidade" />
+              </label>
+              <label>
+                <span>Foto de perfil</span>
+                <input type="text" formControlName="img" placeholder="URL da foto de perfil" />
+              </label>
+              <label>
+                <span>Nova senha</span>
+                <input type="password" formControlName="password" placeholder="Digite uma nova senha se quiser alterar" />
+              </label>
+              <label>
+                <span>Confirmar senha</span>
+                <input type="password" formControlName="passwordConfirm" placeholder="Repita a nova senha" />
+              </label>
 
               @if (formError) {
                 <p class="alert-error">{{ formError }}</p>
               }
 
-              <button class="btn-editar" type="submit" [disabled]="saving || form.invalid">
-                {{ saving ? 'Salvando...' : 'Salvar alterações' }}
-              </button>
+              <div class="form-actions">
+                <button class="btn-editar" type="submit" [disabled]="saving || form.invalid">
+                  {{ saving ? 'Salvando...' : 'Salvar alterações' }}
+                </button>
+                <button class="btn-ghost" type="button" (click)="toggleEdit()">Cancelar</button>
+              </div>
 
-              <h4>OU</h4>
-
-              <button class="delete-user" type="button" [disabled]="deletingAccount" (click)="deleteAccount()">
-                {{ deletingAccount ? 'Excluindo conta...' : 'Deletar conta' }}
-              </button>
+              <div class="danger-zone">
+                <h4>Zona de risco</h4>
+                <p>Excluir sua conta remove seu acesso e encerra sua jornada atual no Lampião.</p>
+                <button class="delete-user" type="button" [disabled]="deletingAccount" (click)="deleteAccount()">
+                  {{ deletingAccount ? 'Excluindo conta...' : 'Deletar conta' }}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -83,16 +120,27 @@
 
     <section class="main-perfil">
       <section class="paginometro">
-        <h3>Paginômetro</h3>
-        <img src="/img/menina-paginometro.png" alt="Personagem do paginômetro" />
-        <div class="rectangle">
-          <img src="/img/Rectangle-pag.png" alt="Paginômetro" />
-          <h4>{{ totalPages }}</h4>
+        <div class="paginometro-card">
+          <p class="eyebrow">Rastro de leitura</p>
+          <h3>Paginômetro</h3>
+          <p class="paginometro-copy">Total de páginas concluídas em livros marcados como lidos na sua estante.</p>
+          <img src="/img/menina-paginometro.png" alt="Personagem do paginômetro" />
+          <div class="rectangle">
+            <img src="/img/Rectangle-pag.png" alt="Paginômetro" />
+            <h4>{{ totalPages }}</h4>
+          </div>
         </div>
       </section>
 
       <section class="estante-container">
-        <h1 id="title">Minha estante</h1>
+        <div class="shelf-header">
+          <div>
+            <p class="eyebrow">Seu acervo pessoal</p>
+            <h1 id="title">Minha estante</h1>
+            <p class="shelf-copy">Organize favoritos, acompanhe seu ritmo de leitura e volte para os livros que continuam chamando conversa.</p>
+          </div>
+          <div class="feed-count">{{ shelfItems.length }} livro{{ shelfItems.length === 1 ? '' : 's' }}</div>
+        </div>
 
         @if (favoriteShelfItems.length > 0) {
           <div class="shelf-section favoritos">
@@ -123,7 +171,10 @@
         <div class="shelf-section all-books">
           <h2>Todos</h2>
           @if (shelfItems.length === 0) {
-            <p class="status">Você ainda não adicionou livros à sua estante.</p>
+            <div class="status-card status-card-inline">
+              <p class="status-kicker">Sua estante ainda está vazia</p>
+              <p class="status">Voce ainda nao adicionou livros a sua estante.</p>
+            </div>
           } @else {
             <div class="book-strip">
               @for (item of shelfItems; track item.notebook.id) {
@@ -151,7 +202,10 @@
     </section>
   } @else {
     <section class="profile-fallback">
-      <p class="status error">{{ errorMessage || 'Nao foi possivel carregar o perfil.' }}</p>
+      <div class="status-card status-card-error">
+        <p class="status-kicker">Nao foi possivel abrir seu perfil</p>
+        <p class="status error">{{ errorMessage || 'Nao foi possivel carregar o perfil.' }}</p>
+      </div>
       <a routerLink="/login" class="status-link">Ir para login</a>
     </section>
   }

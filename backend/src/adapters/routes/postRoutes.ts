@@ -1,31 +1,26 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import { CreatePost } from '../../core/usecases/CreatePost';
-import { DeletePost } from '../../core/usecases/DeletePost';
-import { GetPostById } from '../../core/usecases/GetPostById';
-import { ListAllPosts } from '../../core/usecases/ListAllPosts';
-import { ListPostsByBook } from '../../core/usecases/ListPostsByBook';
-import { ListPostsByUser } from '../../core/usecases/ListPostsByUser';
-import { UpdatePost } from '../../core/usecases/UpdatePost';
+import { Container } from '../container';
 import { AuthenticatedRequest, authenticate, optionalAuthenticate } from '../middlewares/authenticate';
-import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
-import { SequelizePostRepository } from '../repositories/SequelizePostRepository';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizePlainText } from '../validation/sanitizers';
 import { createPostSchema, updatePostSchema } from '../validation/schemas';
 
 const router = Router();
-const postRepository = new SequelizePostRepository();
-const bookRepository = new SequelizeBookRepository();
-const createPost = new CreatePost(postRepository, bookRepository);
-const getPostById = new GetPostById(postRepository);
-const listAllPosts = new ListAllPosts(postRepository);
-const listPostsByBook = new ListPostsByBook(postRepository);
-const listPostsByUser = new ListPostsByUser(postRepository);
-const updatePost = new UpdatePost(postRepository);
-const deletePost = new DeletePost(postRepository);
 
-function canViewPost(post: { isItPublic: boolean; userId: number }, currentUserId?: number): boolean {
+// Get use cases and repositories from container
+const {
+  createPost,
+  deletePost,
+  getPostById,
+  listAllPosts,
+  listPostsByBook,
+  listPostsByUser,
+  updatePost,
+} = Container.useCases;
+const { post: postRepository, book: bookRepository } = Container.repositories;
+
+function canViewPost(post: { isItPublic: boolean; userId: string }, currentUserId?: string): boolean {
   return post.isItPublic || (currentUserId !== undefined && post.userId === currentUserId);
 }
 
@@ -41,8 +36,8 @@ router.get('/', optionalAuthenticate, async (req: AuthenticatedRequest, res: Res
 
 router.get('/book/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid book id' });
     }
 
@@ -56,8 +51,8 @@ router.get('/book/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
 
 router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid user id' });
     }
 
@@ -72,8 +67,8 @@ router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
 
 router.get('/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid post id' });
     }
 
@@ -125,13 +120,13 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
 router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid post id' });
     }
 
@@ -158,13 +153,13 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid post id' });
     }
 

@@ -35,22 +35,22 @@ export class SequelizeNotebookRepository implements NotebookRepository {
     return mapNotebook(notebook);
   }
 
-  async findById(id: number): Promise<Notebook | null> {
+  async findById(id: string): Promise<Notebook | null> {
     const notebook = await NotebookModel.findByPk(id);
     return notebook ? mapNotebook(notebook) : null;
   }
 
-  async findByUserId(userId: number): Promise<Notebook[]> {
+  async findByUserId(userId: string): Promise<Notebook[]> {
     const notebooks = await NotebookModel.findAll({ where: { user_id: userId } });
     return notebooks.map(mapNotebook);
   }
 
-  async findByBookId(bookId: number): Promise<Notebook[]> {
+  async findByBookId(bookId: string): Promise<Notebook[]> {
     const notebooks = await NotebookModel.findAll({ where: { book_id: bookId } });
     return notebooks.map(mapNotebook);
   }
 
-  async findByUserAndBook(userId: number, bookId: number): Promise<Notebook | null> {
+  async findByUserAndBook(userId: string, bookId: string): Promise<Notebook | null> {
     const notebook = await NotebookModel.findOne({
       where: {
         user_id: userId,
@@ -61,7 +61,7 @@ export class SequelizeNotebookRepository implements NotebookRepository {
     return notebook ? mapNotebook(notebook) : null;
   }
 
-  async update(id: number, input: UpdateNotebookInput): Promise<Notebook | null> {
+  async update(id: string, input: UpdateNotebookInput): Promise<Notebook | null> {
     const notebook = await NotebookModel.findByPk(id);
     if (!notebook) {
       return null;
@@ -76,7 +76,7 @@ export class SequelizeNotebookRepository implements NotebookRepository {
     return mapNotebook(notebook);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await NotebookModel.destroy({ where: { id } });
   }
 }

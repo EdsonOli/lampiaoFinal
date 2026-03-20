@@ -3,7 +3,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../../config/database';
 
 export class Book extends Model<any, any> {
-  public id!: number;
+  public id!: string;
   public name!: string;
   public isbn!: string;
   public publishing_company!: string;
@@ -18,8 +18,8 @@ export class Book extends Model<any, any> {
 Book.init(
   {
     id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
     name: {

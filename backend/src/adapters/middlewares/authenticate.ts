@@ -27,7 +27,7 @@ async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedR
   if (token && !tokenBlacklistService.isRevoked(token)) {
     try {
       const payload = await tokenService.verify(token);
-      const userId = Number(payload.sub);
+      const userId = String(payload.sub);
       const user = await userRepository.findById(userId);
 
       if (user) {
@@ -47,7 +47,7 @@ async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedR
   }
 
   const refreshPayload = await refreshTokenService.verify(refreshToken);
-  const userId = Number(refreshPayload.sub);
+  const userId = String(refreshPayload.sub);
   const user = await userRepository.findById(userId);
 
   if (!user) {
@@ -71,7 +71,7 @@ async function resolveAuth(req: Request, res?: Response): Promise<AuthenticatedR
 
 export interface AuthenticatedRequest extends Request {
   auth?: {
-    userId: number;
+    userId: string;
     email: string;
     role: 'user' | 'admin';
   };

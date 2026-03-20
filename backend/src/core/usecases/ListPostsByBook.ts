@@ -4,7 +4,7 @@ import { PostRepository } from '../ports/PostRepository';
 export class ListPostsByBook {
   constructor(private readonly postRepository: PostRepository) {}
 
-  async execute(bookId: number): Promise<Post[]> {
+  async execute(bookId: string): Promise<Post[]> {
     return this.postRepository.findByBookId(bookId);
   }
 }

@@ -1,10 +1,6 @@
 
 import { NextFunction, Request, Response, Router } from 'express';
-import { ListAllBooks } from '../../core/usecases/ListAllBooks';
-import { GetBookById } from '../../core/usecases/GetBookById';
-import { CreateBook } from '../../core/usecases/CreateBook';
-import { InMemoryBookRepository } from '../repositories/InMemoryBookRepository';
-import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
+import { Container } from '../container';
 import { authenticate } from '../middlewares/authenticate';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
@@ -13,13 +9,13 @@ import { createBookSchema } from '../validation/schemas';
 
 const router = Router();
 
-// --- Instanciando dependências ---
-const bookRepository = process.env.BOOK_REPOSITORY === 'memory'
-  ? new InMemoryBookRepository()
-  : new SequelizeBookRepository();
-const listAllBooks = new ListAllBooks(bookRepository);
-const getBookById = new GetBookById(bookRepository);
-const createBook = new CreateBook(bookRepository);
+// Get use cases and repositories from container
+const {
+  createBook,
+  getBookById,
+  listAllBooks,
+} = Container.useCases;
+const { book: bookRepository } = Container.repositories;
 
 // --- Definindo as rotas da API ---
 
@@ -36,8 +32,8 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 // Rota para buscar um livro por ID
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid book id' });
     }
 

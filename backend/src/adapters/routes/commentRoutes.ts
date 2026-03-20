@@ -1,33 +1,27 @@
 import { NextFunction, Request, Response, Router } from 'express';
-import { CreateComment } from '../../core/usecases/CreateComment';
-import { DeleteComment } from '../../core/usecases/DeleteComment';
-import { GetCommentById } from '../../core/usecases/GetCommentById';
-import { ListAllComments } from '../../core/usecases/ListAllComments';
-import { ListCommentsByPost } from '../../core/usecases/ListCommentsByPost';
-import { ListCommentsByUser } from '../../core/usecases/ListCommentsByUser';
-import { UpdateComment } from '../../core/usecases/UpdateComment';
+import { Container } from '../container';
 import { AuthenticatedRequest, authenticate, optionalAuthenticate } from '../middlewares/authenticate';
-import { SequelizeCommentRepository } from '../repositories/SequelizeCommentRepository';
-import { SequelizePostRepository } from '../repositories/SequelizePostRepository';
-import { SequelizePostRepository as PostVisibilityRepository } from '../repositories/SequelizePostRepository';
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizePlainText } from '../validation/sanitizers';
 import { createCommentSchema, updateCommentSchema } from '../validation/schemas';
 
 const router = Router();
-const commentRepository = new SequelizeCommentRepository();
-const postRepository = new SequelizePostRepository();
-const createComment = new CreateComment(commentRepository, postRepository);
-const getCommentById = new GetCommentById(commentRepository);
-const listAllComments = new ListAllComments(commentRepository);
-const listCommentsByPost = new ListCommentsByPost(commentRepository);
-const listCommentsByUser = new ListCommentsByUser(commentRepository);
-const updateComment = new UpdateComment(commentRepository);
-const deleteComment = new DeleteComment(commentRepository);
-const postVisibilityRepository = new PostVisibilityRepository();
 
-async function canViewPostById(postId: number, currentUserId?: number): Promise<boolean> {
+// Get use cases and repositories from container
+const {
+  createComment,
+  deleteComment,
+  getCommentById,
+  listAllComments,
+  listCommentsByPost,
+  listCommentsByUser,
+  updateComment,
+} = Container.useCases;
+const { comment: commentRepository, post: postRepository } = Container.repositories;
+const postVisibilityRepository = postRepository;
+
+async function canViewPostById(postId: string, currentUserId?: string): Promise<boolean> {
   const post = await postVisibilityRepository.findById(postId);
   if (!post) {
     return false;
@@ -56,8 +50,8 @@ router.get('/', optionalAuthenticate, async (req: AuthenticatedRequest, res: Res
 
 router.get('/post/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid post id' });
     }
 
@@ -75,8 +69,8 @@ router.get('/post/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
 
 router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid user id' });
     }
 
@@ -98,8 +92,8 @@ router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
 
 router.get('/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const id = String(req.params.id);
+    if (!id) {
       return res.status(400).json({ message: 'Invalid comment id' });
     }
 
@@ -151,13 +145,13 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
 router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid comment id' });
     }
 
@@ -180,13 +174,13 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.auth?.userId;
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (Number.isNaN(id)) {
+    if (!id) {
       return res.status(400).json({ message: 'Invalid comment id' });
     }
 

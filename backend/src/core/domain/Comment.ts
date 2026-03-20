@@ -1,7 +1,7 @@
 export interface Comment {
-  id: number;
+  id: string;
   title: string;
   text: string;
-  userId: number;
-  postId: number;
+  userId: string;
+  postId: string;
 }

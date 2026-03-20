@@ -2,35 +2,55 @@
 
 <main class="library-page">
   <section class="library-hero">
-    <div>
+    <div class="library-copy">
       <p class="eyebrow">Estante do Lampião</p>
       <h1 class="page-title">Livros para acender a leitura</h1>
-      <p class="subtitle">A listagem ganhou o clima do acervo original, com capas em destaque e tipografia mais marcante.</p>
+      <p class="subtitle">
+        Explore o acervo da comunidade, descubra novas leituras e encontre mundos onde suas proximas conversas podem comecar.
+      </p>
+      <div class="hero-actions">
+        <span class="hero-chip">Acervo comunitario</span>
+        <span class="hero-chip hero-chip-secondary">Descoberta de leituras</span>
+      </div>
     </div>
     <img src="/img/lampiaozinho.png" alt="Mascote Lampião" class="hero-icon" />
   </section>
 
-  <!-- Barra de ferramentas: filtro + botão adicionar -->
   <div class="toolbar">
-    <div class="search-bar">
+    <div class="search-bar" role="search">
       <img src="/img/lupa.png" alt="Buscar" class="search-icon" />
       <input
         type="text"
         placeholder="Filtrar por título, autor ou gênero..."
         [(ngModel)]="filterQuery"
         class="search-input"
+        aria-label="Filtrar livros por titulo, autor ou genero"
       />
     </div>
     <button class="btn-add" (click)="openModal()">+ Adicionar livro</button>
   </div>
 
   @if (loading) {
-    <p class="status">Carregando livros...</p>
+    <div class="status-card">
+      <p class="status-kicker">Organizando a estante</p>
+      <p class="status">Carregando livros...</p>
+    </div>
   } @else if (error) {
-    <p class="status error">{{ error }}</p>
+    <div class="status-card status-card-error">
+      <p class="status-kicker">Nao foi possivel abrir o acervo</p>
+      <p class="status error">{{ error }}</p>
+    </div>
   } @else if (filteredBooks.length === 0) {
-    <p class="status">Nenhum livro encontrado.</p>
+    <div class="status-card status-card-empty">
+      <p class="status-kicker">Nenhum livro encontrado</p>
+      <p class="status">Tente ajustar sua busca ou adicione um novo titulo ao acervo.</p>
+    </div>
   } @else {
+    <div class="shelf-head">
+      <div class="feed-label">Acervo vivo</div>
+      <div class="feed-count">{{ filteredBooks.length }} livro{{ filteredBooks.length === 1 ? '' : 's' }}</div>
+    </div>
+
     <div class="book-grid">
       @for (book of filteredBooks; track book.id) {
         <a class="book-card" [routerLink]="['/livros', book.id]">
@@ -44,7 +64,10 @@
           <div class="book-info">
             <h2>{{ book.name }}</h2>
             <p class="author">{{ book.writer }}</p>
-            <span class="genre">{{ book.genre }}</span>
+            <div class="book-meta">
+              <span class="genre">{{ book.genre }}</span>
+              <span class="book-link">Abrir detalhes</span>
+            </div>
           </div>
         </a>
       }
@@ -60,7 +83,7 @@
       <!-- Etapa 1: Pesquisa Google Books -->
       @if (modalStep === 'search') {
         <h2 class="modal-title">Adicionar livro</h2>
-        <p class="modal-sub">Pesquise pelo título ou autor para preencher automaticamente.</p>
+        <p class="modal-sub">Pesquise pelo titulo ou autor para preencher automaticamente e enriquecer o acervo da comunidade.</p>
 
         <div class="google-search-bar">
           <input

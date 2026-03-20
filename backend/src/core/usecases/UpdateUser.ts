@@ -8,7 +8,7 @@ export class UpdateUser {
     private readonly passwordHasher: PasswordHasher
   ) {}
 
-  async execute(id: number, input: UpdateUserInput): Promise<User> {
+  async execute(id: string, input: UpdateUserInput): Promise<User> {
     const user = await this.userRepository.findById(id);
     if (!user) {
       throw new Error('User not found');

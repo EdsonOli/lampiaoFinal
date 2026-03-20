@@ -33,7 +33,7 @@ export class SequelizeUserRepository implements UserRepository {
     return mapUser(user);
   }
 
-  async update(id: number, input: UpdateUserInput): Promise<User | null> {
+  async update(id: string, input: UpdateUserInput): Promise<User | null> {
     const user = await UserModel.findByPk(id);
     if (!user) {
       return null;
@@ -50,11 +50,11 @@ export class SequelizeUserRepository implements UserRepository {
     return mapUser(user);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     await UserModel.destroy({ where: { id } });
   }
 
-  async findById(id: number): Promise<User | null> {
+  async findById(id: string): Promise<User | null> {
     const user = await UserModel.findByPk(id);
     return user ? mapUser(user) : null;
   }

@@ -64,5 +64,21 @@
   - Rotas admin: `GET/DELETE /api/admin/users`, `GET/DELETE /api/admin/posts`, `GET/DELETE /api/admin/comments`
   - Usuário admin pode deletar qualquer recurso sem verificação de autoria
 
-## Projeto concluído ✅
-Todos os objetivos do plano de refatoração foram atingidos.
+## Refatoração para UUID (em andamento)
+- [x] Domain models atualizados para usar `id: string` (equivalente a UUID)
+- [x] Sequelize models configurados com `DataTypes.UUID` e `defaultValue: UUIDV4`
+- [x] Repositórios atualizados para trabalhar com `string` para IDs
+- [x] Migrações de conversão criadas (5 migrations de 20260320000000 até 20260320000400)
+- [ ] Executar migrações para converter tabelas de INTEGER para UUID
+  - Pré-requisito: **apagar todos os dados existentes** (conforme solicitado)
+  - Comando: `npm run db:migrate` (backend/)
+  - Resultado: Tabelas recriadas com UUID como PK
+  
+**Como executar:**
+1. Backup do banco (se necessário): `mysqldump lampiao_api > backup.sql`
+2. Apagar dados: `npm run db:migrate:undo:all` (descida de migrações antigas)
+3. Executar novas migrações: `npm run db:migrate` (sobe com UUID)
+4. Verificar: `SELECT * FROM SequelizeMeta ORDER BY name;` (must include 20260320* migrations)
+
+## Projeto em progresso 📋
+Refatoração de PK para UUID em andamento. Frontend design system consolidado (7 páginas refatoradas com tokens).

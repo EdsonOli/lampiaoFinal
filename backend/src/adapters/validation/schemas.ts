@@ -57,7 +57,7 @@ export const createBookSchema = z.object({
 export const createPostSchema = z.object({
   title: requiredTrimmedString(1, 160),
   text: requiredTrimmedString(1, 5000),
-  bookId: z.coerce.number().int().positive(),
+  bookId: z.string().uuid(),
   isItPublic: z.boolean().optional(),
 });
 
@@ -72,7 +72,7 @@ export const updatePostSchema = z.object({
 export const createCommentSchema = z.object({
   title: requiredTrimmedString(1, 160),
   text: requiredTrimmedString(1, 3000),
-  postId: z.coerce.number().int().positive(),
+  postId: z.string().uuid(),
 });
 
 export const updateCommentSchema = z.object({

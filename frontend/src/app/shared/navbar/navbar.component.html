@@ -1,4 +1,4 @@
-<nav class="navbar">
+<nav class="navbar" aria-label="Navegacao principal">
   <a class="brand" routerLink="/timeline" aria-label="Ir para a timeline">
     <img src="/img/LogoBranca.svg" alt="Lampião" class="brand-logo" />
   </a>
@@ -17,7 +17,7 @@
         <img src="/img/perfil-white.png" alt="" aria-hidden="true" />
         <span>Perfil</span>
       </a>
-      <button class="btn-logout" (click)="logout()">
+      <button class="btn-logout" type="button" (click)="logout()">
         <img src="/img/check-out-white.png" alt="" aria-hidden="true" />
         <span>Sair</span>
       </button>
