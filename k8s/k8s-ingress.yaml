@@ -1,0 +1,121 @@
+---
+# Ingress: HTTP/HTTPS routing to Lampiao services
+# Requires ingress-nginx controller to be installed:
+# helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+# helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lampiao-ingress
+  namespace: lampiao-prod
+  annotations:
+    # NGINX annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://lampiao.com"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    
+    # Certificate annotation (if using cert-manager)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  
+  # TLS certificate
+  tls:
+    - hosts:
+        - lampiao.com
+        - api.lampiao.com
+        - www.lampiao.com
+      secretName: lampiao-tls-certificate
+
+  rules:
+    # API routes
+    - host: api.lampiao.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3001
+
+    # Frontend routes
+    - host: lampiao.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+
+    - host: www.lampiao.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+
+---
+# Certificate: TLS certificate (requires cert-manager)
+# Install cert-manager:
+# helm repo add jetstack https://charts.jetstack.io
+# helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lampiao-certificate
+  namespace: lampiao-prod
+spec:
+  secretName: lampiao-tls-certificate
+  duration: 2160h  # 90 days
+  renewBefore: 360h  # 15 days
+  commonName: lampiao.com
+  dnsNames:
+    - lampiao.com
+    - www.lampiao.com
+    - api.lampiao.com
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+---
+# ClusterIssuer for Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@lampiao.com  # Change to your email
+    privateKeySecretRef:
+      name: letsencrypt-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx

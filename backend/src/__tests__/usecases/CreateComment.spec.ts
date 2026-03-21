@@ -55,4 +55,49 @@ describe('CreateComment', () => {
     const comments = await commentRepo.findByPostId(postId);
     expect(comments).toHaveLength(2);
   });
+
+  it('should create a reply for an existing comment in the same post', async () => {
+    const parent = await sut.execute({
+      title: 'Comentário raiz',
+      text: 'Texto raiz',
+      userId: 'user-1',
+      postId,
+    });
+
+    const reply = await sut.execute({
+      title: 'Resposta',
+      text: 'Texto resposta',
+      userId: 'user-2',
+      postId,
+      parentCommentId: parent.id,
+    });
+
+    expect(reply.parentCommentId).toBe(parent.id);
+  });
+
+  it('should throw when parentCommentId does not belong to the post', async () => {
+    const otherPost = await postRepo.create({
+      title: 'Outro post',
+      text: 'Outro conteúdo',
+      userId: 'user-3',
+      bookId: 'book-1',
+    });
+
+    const parentInOtherPost = await sut.execute({
+      title: 'Raiz em outro post',
+      text: 'Texto',
+      userId: 'user-4',
+      postId: otherPost.id,
+    });
+
+    await expect(
+      sut.execute({
+        title: 'Resposta inválida',
+        text: 'Texto',
+        userId: 'user-1',
+        postId,
+        parentCommentId: parentInOtherPost.id,
+      })
+    ).rejects.toThrow('Parent comment not found');
+  });
 });

@@ -168,6 +168,16 @@ input::placeholder {
   color: #8b2f21;
 }
 
+.alert-info {
+  margin: 0.75rem 0 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(52, 152, 219, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(52, 152, 219, 0.08);
+  color: #0e5c8a;
+  font-size: 0.95rem;
+}
+
 .cadastre {
   margin-top: 1.4rem;
   text-align: center;

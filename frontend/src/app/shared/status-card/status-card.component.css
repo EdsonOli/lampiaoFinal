@@ -1,0 +1,4 @@
+/* Status-card inline variant — when inside a section rather than a full-page state */
+:host(.inline) .status-card {
+  margin-top: 0;
+}

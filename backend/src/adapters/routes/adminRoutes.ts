@@ -3,6 +3,7 @@ import { Container } from '../container';
 import { authenticate, AuthenticatedRequest } from '../middlewares/authenticate';
 import { toAdminUserDTO } from '../presenters/UserPresenter';
 import { requireAdmin } from '../middlewares/requireAdmin';
+import { badRequest, notFound } from '../http/respondError';
 
 const router = Router();
 
@@ -36,10 +37,10 @@ router.get('/users', async (_req: AuthenticatedRequest, res: Response, next: Nex
 router.get('/users/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
-    if (!id) return res.status(400).json({ message: 'Invalid user id' });
+    if (!id) return badRequest(res, 'O identificador do usuario informado e invalido.', 'ADMIN_USER_ID_INVALID');
 
     const user = await getUserById.execute(id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return notFound(res, 'O usuario solicitado nao foi encontrado.', 'ADMIN_USER_NOT_FOUND');
 
     res.json(toAdminUserDTO(user));
   } catch (error) {
@@ -50,7 +51,7 @@ router.get('/users/:id', async (req: AuthenticatedRequest, res: Response, next: 
 router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
-    if (!id) return res.status(400).json({ message: 'Invalid user id' });
+    if (!id) return badRequest(res, 'O identificador do usuario informado e invalido.', 'ADMIN_USER_ID_INVALID');
 
     await deleteUser.execute(id);
     res.status(204).send();
@@ -73,10 +74,10 @@ router.get('/posts', async (_req: AuthenticatedRequest, res: Response, next: Nex
 router.delete('/posts/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
-    if (!id) return res.status(400).json({ message: 'Invalid post id' });
+    if (!id) return badRequest(res, 'O identificador do post informado e invalido.', 'ADMIN_POST_ID_INVALID');
 
     const post = await getPostById.execute(id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) return notFound(res, 'O post solicitado nao foi encontrado.', 'ADMIN_POST_NOT_FOUND');
 
     // Admin pode deletar qualquer post sem checar autoria
     await deletePost.execute(id, post.userId);
@@ -100,10 +101,10 @@ router.get('/comments', async (_req: AuthenticatedRequest, res: Response, next: 
 router.delete('/comments/:id', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
-    if (!id) return res.status(400).json({ message: 'Invalid comment id' });
+    if (!id) return badRequest(res, 'O identificador do comentario informado e invalido.', 'ADMIN_COMMENT_ID_INVALID');
 
     const comment = await getCommentById.execute(id);
-    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    if (!comment) return notFound(res, 'O comentario solicitado nao foi encontrado.', 'ADMIN_COMMENT_NOT_FOUND');
 
     await deleteComment.execute(id, comment.userId);
     res.status(204).send();

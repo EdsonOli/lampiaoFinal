@@ -11,6 +11,7 @@
       <div class="hero-actions">
         <span class="hero-chip">Mural da comunidade</span>
         <span class="hero-chip hero-chip-secondary">Leitura compartilhada</span>
+        <a class="btn-explore" routerLink="/livros">Explorar livros</a>
       </div>
     </div>
     <img src="/img/timeline-banner.png" alt="Banner da timeline" class="hero-art" />
@@ -18,20 +19,11 @@
 
   <section class="timeline-content">
     @if (loading) {
-      <div class="status-card">
-        <p class="status-kicker">Preparando o mural</p>
-        <p class="status">Carregando posts da comunidade...</p>
-      </div>
+      <app-status-card kicker="Preparando o mural" message="Carregando posts da comunidade..." />
     } @else if (error) {
-      <div class="status-card status-card-error">
-        <p class="status-kicker">Algo saiu do rumo</p>
-        <p class="status error">{{ error }}</p>
-      </div>
+      <app-status-card variant="error" kicker="Algo saiu do rumo" [message]="error" />
     } @else if (posts.length === 0) {
-      <div class="status-card status-card-empty">
-        <p class="status-kicker">O espaco ainda esta silencioso</p>
-        <p class="status">Nenhum post ainda. Este pode ser um bom momento para acender a primeira conversa.</p>
-      </div>
+      <app-status-card variant="empty" kicker="O espaço ainda está silencioso" message="Nenhum post ainda. Este pode ser um bom momento para acender a primeira conversa." />
     } @else {
       <div class="feed-head">
         <div>
@@ -45,13 +37,20 @@
         @for (post of posts; track post.id) {
           <article class="post-card">
             <header class="post-card-header">
-              <div class="post-book-pill">Livro #{{ post.bookId }}</div>
-              <span class="tag">{{ post.isItPublic ? 'Publico' : 'Privado' }}</span>
+              <a class="post-book-pill" [routerLink]="['/livros', post.bookId]"
+                 [attr.title]="'Abrir ' + getBookName(post.bookId)">
+                {{ getBookName(post.bookId) }}
+              </a>
+              <span class="tag">{{ post.isItPublic ? 'Público' : 'Privado' }}</span>
             </header>
-            <h2>{{ post.title }}</h2>
+            <h2>
+              <a [routerLink]="['/livros', post.bookId]" class="post-title-link">
+                {{ post.title }}
+              </a>
+            </h2>
             <p>{{ post.text }}</p>
-            <footer>
-              <span class="post-meta">Leitura em circulacao</span>
+            <footer class="post-card-footer">
+              <a [routerLink]="['/livros', post.bookId]" class="post-cta">Ver no livro →</a>
             </footer>
           </article>
         }

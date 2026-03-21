@@ -1,0 +1,1 @@
+{"message":"Ocorreu um erro interno inesperado. Tente novamente em instantes.","code":"INTERNAL_SERVER_ERROR","requestId":"ca9cfdff-d9e3-4f70-8029-3658559c37a1","timestamp":"2026-03-21T18:28:22.411Z","path":"/api/v1/auth/google"}

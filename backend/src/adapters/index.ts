@@ -9,12 +9,17 @@ import bookRoutes from './routes/bookRoutes';
 import commentRoutes from './routes/commentRoutes';
 import notebookRoutes from './routes/notebookRoutes';
 import postRoutes from './routes/postRoutes';
+import searchRoutes from './routes/searchRoutes';
+import seriesRoutes from './routes/seriesRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import userRoutes from './routes/userRoutes';
 import sequelize from '../config/database';
 import { initModels } from './models/initModels';
 import { errorHandler } from './middlewares/errorHandler';
 import { globalRateLimiter } from './middlewares/rateLimiters';
+import { badRequest } from './http/respondError';
+import { requestContext } from './middlewares/requestContext';
+import { appLogger, serializeError } from './services/AppLogger';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -82,6 +87,7 @@ const securityHeaders = helmet({
 
 // Middleware para parsear JSON
 app.use(securityHeaders);
+app.use(requestContext);
 
 if (forceHttpsRedirect) {
   app.use((req: Request, res: Response, next) => {
@@ -94,7 +100,7 @@ if (forceHttpsRedirect) {
     }
 
     if (!req.headers.host) {
-      res.status(400).json({ message: 'Invalid host header' });
+      badRequest(res, 'O cabecalho Host da requisicao e invalido.', 'HOST_HEADER_INVALID');
       return;
     }
 
@@ -103,7 +109,7 @@ if (forceHttpsRedirect) {
 }
 
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(globalRateLimiter);
 
 // Health check
@@ -111,10 +117,17 @@ app.get('/', (req: Request, res: Response) => {
   res.send('API is running...');
 });
 
+// Health endpoint for Docker/Kubernetes
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'OK', service: 'lampiao-api' });
+});
+
 // Registrando as rotas de livros sob o prefixo /api/books
 app.use('/api/auth', cors(credentialedCorsOptions), authRoutes);
 app.use('/api/admin', cors(credentialedCorsOptions), adminRoutes);
 app.use('/api/books', cors(publicCorsOptions), bookRoutes);
+app.use('/api/search-books', cors(credentialedCorsOptions), searchRoutes);
+app.use('/api/series', cors(publicCorsOptions), seriesRoutes);
 app.use('/api/comments', cors(credentialedCorsOptions), commentRoutes);
 app.use('/api/notebooks', cors(credentialedCorsOptions), notebookRoutes);
 app.use('/api/posts', cors(credentialedCorsOptions), postRoutes);
@@ -124,6 +137,8 @@ app.use('/api/users', cors(credentialedCorsOptions), userRoutes);
 app.use('/api/v1/auth', cors(credentialedCorsOptions), authRoutes);
 app.use('/api/v1/admin', cors(credentialedCorsOptions), adminRoutes);
 app.use('/api/v1/books', cors(publicCorsOptions), bookRoutes);
+app.use('/api/v1/search-books', cors(credentialedCorsOptions), searchRoutes);
+app.use('/api/v1/series', cors(publicCorsOptions), seriesRoutes);
 app.use('/api/v1/comments', cors(credentialedCorsOptions), commentRoutes);
 app.use('/api/v1/notebooks', cors(credentialedCorsOptions), notebookRoutes);
 app.use('/api/v1/posts', cors(credentialedCorsOptions), postRoutes);
@@ -137,21 +152,28 @@ initModels();
 
 const startServer = (): void => {
   app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    appLogger.info('server.started', 'Lampiao API server started', {
+      port,
+      environment: process.env.NODE_ENV || 'development',
+      trustProxyEnabled,
+    });
   });
 };
 
 if (skipDbSync) {
-  console.warn('Starting without database sync because SKIP_DB_SYNC=true');
+  appLogger.warn('database.sync.skipped', 'Starting without database sync because SKIP_DB_SYNC=true');
   startServer();
 } else {
   sequelize
     .sync({ alter: false })
     .then(() => {
+      appLogger.info('database.sync.completed', 'Database synchronization completed successfully');
       startServer();
     })
     .catch((err: Error) => {
-      console.error('Failed to sync database:', err.message);
+      appLogger.error('database.sync.failed', 'Failed to synchronize database before startup', {
+        error: serializeError(err),
+      });
       process.exit(1);
     });
 }

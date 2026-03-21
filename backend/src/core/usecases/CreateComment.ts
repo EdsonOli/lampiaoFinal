@@ -15,6 +15,13 @@ export class CreateComment {
       throw new NotFoundError('Post not found');
     }
 
+    if (input.parentCommentId) {
+      const parentComment = await this.commentRepository.findById(input.parentCommentId);
+      if (parentComment?.postId !== input.postId) {
+        throw new NotFoundError('Parent comment not found');
+      }
+    }
+
     return this.commentRepository.create(input);
   }
 }

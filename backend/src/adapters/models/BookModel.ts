@@ -40,7 +40,7 @@ Book.init(
       allowNull: false,
     },
     genre: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(500),
       allowNull: false,
     },
     n_pages: {
@@ -52,11 +52,11 @@ Book.init(
       allowNull: false,
     },
     img: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(2048),
       allowNull: true,
     },
     synopsis: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: true,
     },
   },

@@ -1,5 +1,6 @@
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from './authenticate';
+import { forbidden } from '../http/respondError';
 
 export function requireAdmin(
   req: AuthenticatedRequest,
@@ -7,7 +8,7 @@ export function requireAdmin(
   next: NextFunction
 ): void {
   if (req.auth?.role !== 'admin') {
-    res.status(403).json({ message: 'Admin access required' });
+    forbidden(res, 'Esta operacao exige permissao de administrador.', 'ADMIN_ACCESS_REQUIRED');
     return;
   }
   next();

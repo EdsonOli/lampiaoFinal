@@ -1,0 +1,95 @@
+---
+# Kustomization for Lampiao Kubernetes Deployments
+# Simplifies managing multiple environments (dev, staging, prod)
+# Usage: kustomize build ./kubernetes/overlays/prod | kubectl apply -f -
+# Or: kubectl apply -k ./kubernetes/overlays/prod
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lampiao-prod
+
+# Base resources
+resources:
+  - ../base/namespace.yaml
+  - ../base/backend-deployment.yaml
+  - ../base/frontend-deployment.yaml
+  - ../base/database-deployment.yaml
+  - ../base/services.yaml
+  - ../base/ingress.yaml
+  - ../base/configmap.yaml
+  - ../base/secrets.yaml
+
+# ConfigMap/Secret generators
+configMapGenerator:
+  - name: lampiao-config
+    literals:
+      - db.host=postgres.lampiao-prod.svc.cluster.local
+      - api.url=https://api.lampiao.com
+      - frontend.url=https://lampiao.com
+      - log.level=info
+
+secretGenerator:
+  - name: lampiao-secrets
+    literals:
+      - db.password=CHANGE_ME_TO_STRONG_PASSWORD
+      - jwt.secret=CHANGE_ME_TO_RANDOM_SECRET
+      - google.client.id=your_google_id
+      - google.client.secret=your_google_secret
+
+# Image tags to deploy
+images:
+  - name: lampiao-backend
+    newTag: v1.0.0  # Change version here
+  - name: lampiao-frontend
+    newTag: v1.0.0  # Change version here
+  - name: postgres
+    newTag: "15-alpine"
+
+# Replicas for different pods
+replicas:
+  - name: backend
+    count: 3
+  - name: frontend
+    count: 2
+
+# Common labels applied to all resources
+commonLabels:
+  environment: production
+  managed-by: kustomize
+  version: v1
+
+# Common annotations
+commonAnnotations:
+  kustomize.config.k8s.io/needs-hash: "true"
+
+# Strategic merge patches
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+# Resource quotas per namespace
+vars:
+  - name: NAMESPACE
+    objref:
+      apiVersion: v1
+      kind: Namespace
+      name: lampiao-prod
+    fieldref:
+      fieldpath: metadata.name

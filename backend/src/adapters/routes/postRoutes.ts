@@ -4,7 +4,13 @@ import { AuthenticatedRequest, authenticate, optionalAuthenticate } from '../mid
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizePlainText } from '../validation/sanitizers';
-import { createPostSchema, updatePostSchema } from '../validation/schemas';
+import { badRequest, notFound, unauthorized, validationError } from '../http/respondError';
+import {
+  createPostSchema,
+  getPostDraftQuerySchema,
+  savePostDraftSchema,
+  updatePostSchema,
+} from '../validation/schemas';
 
 const router = Router();
 
@@ -16,6 +22,9 @@ const {
   listAllPosts,
   listPostsByBook,
   listPostsByUser,
+  savePostDraft,
+  getPostDraft,
+  deletePostDraft,
   updatePost,
 } = Container.useCases;
 
@@ -37,7 +46,7 @@ router.get('/book/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid book id' });
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'POST_BOOK_ID_INVALID');
     }
 
     const posts = await listPostsByBook.execute(id);
@@ -52,7 +61,7 @@ router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid user id' });
+      return badRequest(res, 'O identificador do usuario informado e invalido.', 'POST_USER_ID_INVALID');
     }
 
     const posts = await listPostsByUser.execute(id);
@@ -64,24 +73,135 @@ router.get('/user/:id', optionalAuthenticate, async (req: AuthenticatedRequest, 
   }
 });
 
+router.get('/drafts/:bookId', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.auth?.userId;
+    const bookId = String(req.params.bookId);
+
+    if (!userId) {
+      return unauthorized(res, 'Voce precisa estar autenticado para acessar rascunhos de post.', 'POST_DRAFT_AUTH_REQUIRED');
+    }
+
+    if (!bookId) {
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'POST_BOOK_ID_INVALID');
+    }
+
+    const query = parseOrThrow(getPostDraftQuerySchema, req.query);
+
+    const draft = await getPostDraft.execute({
+      userId,
+      bookId,
+      deviceId: query.deviceId,
+    });
+
+    res.json({ draft });
+  } catch (error) {
+    if (isValidationError(error)) {
+      return validationError(res, getValidationMessage(error), 'POST_DRAFT_QUERY_INVALID');
+    }
+
+    next(error);
+  }
+});
+
 router.get('/:id', optionalAuthenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid post id' });
+      return badRequest(res, 'O identificador do post informado e invalido.', 'POST_ID_INVALID');
     }
 
     const post = await getPostById.execute(id);
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      return notFound(res, 'O post solicitado nao foi encontrado.', 'POST_NOT_FOUND');
     }
 
     if (!canViewPost(post, req.auth?.userId)) {
-      return res.status(404).json({ message: 'Post not found' });
+      return notFound(res, 'O post solicitado nao esta disponivel para visualizacao.', 'POST_NOT_VISIBLE');
     }
 
     res.json(post);
   } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/drafts/:bookId', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.auth?.userId;
+    const bookId = String(req.params.bookId);
+
+    if (!userId) {
+      return unauthorized(res, 'Voce precisa estar autenticado para salvar rascunhos.', 'POST_DRAFT_SAVE_AUTH_REQUIRED');
+    }
+
+    if (!bookId) {
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'POST_BOOK_ID_INVALID');
+    }
+
+    const payload = parseOrThrow(savePostDraftSchema, req.body);
+
+    const draft = await savePostDraft.execute({
+      userId,
+      bookId,
+      deviceId: payload.deviceId,
+      title: payload.title !== undefined ? sanitizePlainText(payload.title) : undefined,
+      text: payload.text !== undefined ? sanitizePlainText(payload.text) : undefined,
+      isItPublic: payload.isItPublic,
+    });
+
+    await auditLog('post_draft.save', {
+      draftId: draft.id,
+      userId,
+      bookId,
+      deviceId: draft.deviceId,
+      hasTitle: draft.title.length > 0,
+      hasText: draft.text.length > 0,
+    });
+
+    res.json(draft);
+  } catch (error) {
+    if (isValidationError(error)) {
+      return validationError(res, getValidationMessage(error), 'POST_DRAFT_SAVE_INVALID_PAYLOAD');
+    }
+
+    next(error);
+  }
+});
+
+router.delete('/drafts/:bookId', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.auth?.userId;
+    const bookId = String(req.params.bookId);
+
+    if (!userId) {
+      return unauthorized(res, 'Voce precisa estar autenticado para excluir rascunhos.', 'POST_DRAFT_DELETE_AUTH_REQUIRED');
+    }
+
+    if (!bookId) {
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'POST_BOOK_ID_INVALID');
+    }
+
+    const query = parseOrThrow(getPostDraftQuerySchema, req.query);
+
+    await deletePostDraft.execute({
+      userId,
+      bookId,
+      deviceId: query.deviceId,
+    });
+
+    await auditLog('post_draft.delete', {
+      userId,
+      bookId,
+      deviceId: query.deviceId,
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    if (isValidationError(error)) {
+      return validationError(res, getValidationMessage(error), 'POST_DRAFT_DELETE_QUERY_INVALID');
+    }
+
     next(error);
   }
 });
@@ -91,7 +211,7 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
     const userId = req.auth?.userId;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para publicar posts.', 'POST_CREATE_AUTH_REQUIRED');
     }
 
     const payload = parseOrThrow(createPostSchema, req.body);
@@ -109,7 +229,7 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
     res.status(201).json(post);
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'POST_CREATE_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -122,11 +242,11 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
     const id = String(req.params.id);
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para editar posts.', 'POST_UPDATE_AUTH_REQUIRED');
     }
 
     if (!id) {
-      return res.status(400).json({ message: 'Invalid post id' });
+      return badRequest(res, 'O identificador do post informado e invalido.', 'POST_ID_INVALID');
     }
 
     const payload = parseOrThrow(updatePostSchema, req.body);
@@ -142,7 +262,7 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
     res.json(post);
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'POST_UPDATE_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -155,11 +275,11 @@ router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Respo
     const id = String(req.params.id);
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para excluir posts.', 'POST_DELETE_AUTH_REQUIRED');
     }
 
     if (!id) {
-      return res.status(400).json({ message: 'Invalid post id' });
+      return badRequest(res, 'O identificador do post informado e invalido.', 'POST_ID_INVALID');
     }
 
     await deletePost.execute(id, userId);

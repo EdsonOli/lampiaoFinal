@@ -4,6 +4,7 @@ import { AuthenticatedRequest, authenticate } from '../middlewares/authenticate'
 import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { bookCoverUploadSchema, profileImageUploadSchema } from '../validation/schemas';
+import { unauthorized, validationError } from '../http/respondError';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post('/profile/sign', authenticate, async (req: AuthenticatedRequest, res
   try {
     const userId = req.auth?.userId;
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para gerar um upload de imagem de perfil.', 'UPLOAD_PROFILE_AUTH_REQUIRED');
     }
 
     const payload = parseOrThrow(profileImageUploadSchema, req.body);
@@ -33,7 +34,7 @@ router.post('/profile/sign', authenticate, async (req: AuthenticatedRequest, res
     res.json(signed);
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'UPLOAD_PROFILE_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -47,7 +48,7 @@ router.post('/book-cover/sign', authenticate, async (req: AuthenticatedRequest, 
     const requesterUserId = req.auth?.userId;
 
     if (!role || !requesterUserId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para gerar um upload de capa.', 'UPLOAD_BOOK_COVER_AUTH_REQUIRED');
     }
 
     const signed = await createBookCoverUploadUrl.execute({
@@ -68,7 +69,7 @@ router.post('/book-cover/sign', authenticate, async (req: AuthenticatedRequest, 
     res.json(signed);
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'UPLOAD_BOOK_COVER_INVALID_PAYLOAD');
     }
 
     next(error);

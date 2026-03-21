@@ -1,0 +1,154 @@
+<app-navbar />
+
+<div class="series-container">
+  @if (loading) {
+    <div class="loading">
+      <p>Carregando série...</p>
+    </div>
+  }
+
+  @if (error && !loading) {
+    <div class="error-message">
+      <p>{{ error }}</p>
+      <button (click)="goBack()" class="btn-back">Voltar para livros</button>
+    </div>
+  }
+
+  @if (series && !loading) {
+    <div class="series-content">
+      <header class="series-header">
+        <div class="series-title">
+          <h1>{{ series.name }}</h1>
+          @if (series.universeName) {
+            <p class="universe">{{ series.universeName }}</p>
+          }
+          @if (series.metadataSource) {
+            <p class="metadata-source">
+              Fonte: {{ series.metadataSource }}
+              <span class="confidence" [ngClass]="getConfidenceClass(series.metadataConfidence)">
+                {{ series.metadataConfidence }}
+              </span>
+            </p>
+          }
+        </div>
+        <div class="series-stats">
+          <p class="stat">
+            <strong>{{ series.books.length }}</strong>
+            <span>{{ series.books.length === 1 ? 'livro' : 'livros' }}</span>
+          </p>
+        </div>
+      </header>
+
+      <section class="creative-lab">
+        <div class="creative-head">
+          <div>
+            <p class="eyebrow">Leitor para escritor</p>
+            <h2>Laboratorio criativo da serie</h2>
+            <p>Use este gatilho para escrever sua primeira cena e publicar no livro base da saga.</p>
+          </div>
+          <button type="button" class="btn-secondary" (click)="pickAnotherPrompt()">Novo prompt</button>
+        </div>
+
+        <blockquote class="prompt-box">{{ currentPrompt }}</blockquote>
+
+        <div class="creative-target">
+          <label for="writingBook">Livro base para escrever</label>
+          <select id="writingBook" [(ngModel)]="selectedWritingBookId" class="creative-select">
+            @for (book of series.books; track book.id) {
+              <option [ngValue]="book.id">
+                {{ getPositionLabel(book) ? (getPositionLabel(book) + ' - ') : '' }}{{ book.name }}
+              </option>
+            }
+          </select>
+        </div>
+
+        <div class="creative-actions">
+          <button type="button" class="btn-primary" (click)="writeFromSeries()">Comecar a escrever</button>
+        </div>
+      </section>
+
+      <section class="books-section">
+        <h2>Livros da Série</h2>
+        <div class="books-grid">
+          @for (book of series.books; track book.id) {
+            <button
+              type="button"
+              class="book-card"
+              (click)="navigateToBook(book.id)"
+            >
+              @if (getPositionLabel(book)) {
+                <div class="book-position">{{ getPositionLabel(book) }}</div>
+              }
+
+              @if (book.img) {
+                <div class="book-cover">
+                  <img [src]="book.img" [alt]="book.name" loading="lazy" />
+                </div>
+              } @else {
+                <div class="book-cover-placeholder">
+                  <p>{{ book.name }}</p>
+                </div>
+              }
+
+              <div class="book-info">
+                <h3>{{ book.name }}</h3>
+                <p class="author">{{ book.writer }}</p>
+                @if (book.isbn) {
+                  <p class="isbn">#{{ book.isbn }}</p>
+                }
+              </div>
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="narrative-section">
+        <div class="narrative-head">
+          <div>
+            <p class="eyebrow">Comunidade em movimento</p>
+            <h2>Trilha narrativa da serie</h2>
+            <p>Posts publicos publicados nos livros desta saga, ordenados por atividade recente.</p>
+          </div>
+          <div class="narrative-count">{{ narrativePosts.length }} post{{ narrativePosts.length === 1 ? '' : 's' }}</div>
+        </div>
+
+        @if (narrativeLoading) {
+          <div class="status-inline">Carregando trilha narrativa...</div>
+        } @else if (narrativeError) {
+          <div class="status-inline status-inline-error">{{ narrativeError }}</div>
+        } @else if (narrativePosts.length === 0) {
+          <div class="status-inline">
+            Ainda nao ha posts publicos nesta serie. Seja a primeira pessoa a abrir essa conversa.
+          </div>
+        } @else {
+          <div class="narrative-list">
+            @for (post of narrativePosts; track post.id) {
+              <article class="narrative-card">
+                <header class="narrative-card-head">
+                  <div>
+                    <button type="button" class="narrative-book" (click)="navigateToBook(post.bookId)">{{ post.bookName }}</button>
+                    <p class="narrative-meta">
+                      {{ post.positionLabel || (post.positionInSeries ? ('Livro ' + post.positionInSeries) : 'Saga') }}
+                      · {{ post.createdAt | formatDate }}
+                    </p>
+                  </div>
+                </header>
+                <h3>{{ post.title }}</h3>
+                <p>{{ post.text }}</p>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      @if (series.metadataSource) {
+        <section class="info-section">
+          <p class="info-text">
+            Esta série foi descoberta via <strong>{{ series.metadataSource }}</strong>
+            com nível de confiança <strong>{{ series.metadataConfidence }}</strong>.
+          </p>
+        </section>
+      }
+    </div>
+  }
+</div>

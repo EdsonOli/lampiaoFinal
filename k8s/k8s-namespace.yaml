@@ -1,0 +1,20 @@
+---
+# Kubernetes Namespace for Lampiao application
+# Separate namespaces for staging and production provide isolation and resource quotas
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lampiao-prod
+  labels:
+    environment: production
+    managed-by: terraform-or-helm
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lampiao-staging
+  labels:
+    environment: staging
+    managed-by: terraform-or-helm

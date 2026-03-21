@@ -2,10 +2,7 @@
 
 <main class="profile-page">
   @if (loading && !user) {
-    <div class="status-card">
-      <p class="status-kicker">Preparando seu canto de leitura</p>
-      <p class="status">Carregando perfil...</p>
-    </div>
+    <app-status-card kicker="Preparando seu canto de leitura" message="Carregando perfil..." />
   } @else if (user) {
     <section class="profile-hero">
       <div class="hero-surface">
@@ -54,12 +51,16 @@
     </section>
 
     @if (editMode) {
-      <section class="edit-form">
+      <dialog
+        class="edit-form"
+        open
+        aria-labelledby="edit-modal-title"
+      >
         <div class="modal-editar-user">
           <div class="modal-header">
             <div>
               <p class="eyebrow">Atualize sua presença</p>
-              <h3>Editar perfil</h3>
+              <h3 id="edit-modal-title">Editar perfil</h3>
             </div>
             <button type="button" class="close" (click)="toggleEdit()" aria-label="Fechar edição">X</button>
           </div>
@@ -67,7 +68,7 @@
             <form [formGroup]="form" (ngSubmit)="saveProfile()">
               <label>
                 <span>Nome</span>
-                <input type="text" formControlName="name" placeholder="Seu nome" />
+                <input #editModalFirstInput type="text" formControlName="name" placeholder="Seu nome" />
               </label>
               <label>
                 <span>Email</span>
@@ -121,7 +122,7 @@
             </form>
           </div>
         </div>
-      </section>
+      </dialog>
     }
 
     @if (successMessage) {
@@ -212,10 +213,7 @@
     </section>
   } @else {
     <section class="profile-fallback">
-      <div class="status-card status-card-error">
-        <p class="status-kicker">Nao foi possivel abrir seu perfil</p>
-        <p class="status error">{{ errorMessage || 'Nao foi possivel carregar o perfil.' }}</p>
-      </div>
+      <app-status-card kicker="Nao foi possivel abrir seu perfil" [message]="errorMessage || 'Nao foi possivel carregar o perfil.'" variant="error" />
       <a routerLink="/login" class="status-link">Ir para login</a>
     </section>
   }

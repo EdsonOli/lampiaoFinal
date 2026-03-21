@@ -14,26 +14,6 @@
   color: var(--color-danger);
 }
 
-.status-card {
-  margin-top: 0.75rem;
-  padding: 2rem 1.25rem;
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 253, 248, 0.92);
-  box-shadow: var(--lampiao-shadow-soft);
-  text-align: center;
-}
-
-.status-card-error {
-  border-color: rgba(169, 68, 56, 0.18);
-  background: rgba(255, 248, 246, 0.92);
-}
-
-.status-card-inline {
-  margin-top: 0;
-}
-
-.status-kicker,
 .eyebrow {
   margin: 0 0 0.5rem;
   font-family: var(--font-brand);
@@ -57,7 +37,7 @@
   padding: 0.55rem 1rem;
   border-radius: 999px;
   background: rgba(53, 46, 136, 0.12);
-  color: #352e88;
+  color: var(--color-brand-secondary);
   text-decoration: none;
   font-weight: 600;
 }
@@ -280,7 +260,7 @@
 .btn-editar {
   border: 1px solid transparent;
   background: linear-gradient(135deg, var(--color-brand-primary), #c8834f);
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 .btn-google-link {

@@ -24,9 +24,13 @@ import { CreatePost } from '../../core/usecases/CreatePost';
 import { UpdatePost } from '../../core/usecases/UpdatePost';
 import { DeletePost } from '../../core/usecases/DeletePost';
 import { GetPostById } from '../../core/usecases/GetPostById';
+import { GetPostsByIds } from '../../core/usecases/GetPostsByIds';
 import { ListAllPosts } from '../../core/usecases/ListAllPosts';
 import { ListPostsByBook } from '../../core/usecases/ListPostsByBook';
 import { ListPostsByUser } from '../../core/usecases/ListPostsByUser';
+import { SavePostDraft } from '../../core/usecases/SavePostDraft';
+import { GetPostDraft } from '../../core/usecases/GetPostDraft';
+import { DeletePostDraft } from '../../core/usecases/DeletePostDraft';
 
 // Comment use cases
 import { CreateComment } from '../../core/usecases/CreateComment';
@@ -36,6 +40,9 @@ import { GetCommentById } from '../../core/usecases/GetCommentById';
 import { ListAllComments } from '../../core/usecases/ListAllComments';
 import { ListCommentsByPost } from '../../core/usecases/ListCommentsByPost';
 import { ListCommentsByUser } from '../../core/usecases/ListCommentsByUser';
+import { VoteCommentRelevance } from '../../core/usecases/VoteCommentRelevance';
+import { ListCommentTreeByPost } from '../../core/usecases/ListCommentTreeByPost';
+import { GetCommentRelevanceVotesByUser } from '../../core/usecases/GetCommentRelevanceVotesByUser';
 
 // Notebook use cases
 import { CreateNotebookEntry } from '../../core/usecases/CreateNotebookEntry';
@@ -49,6 +56,13 @@ import { UpdateBook } from '../../core/usecases/UpdateBook';
 import { GetBooks } from '../../core/usecases/GetBooks';
 import { GetBookById } from '../../core/usecases/GetBookById';
 import { ListAllBooks } from '../../core/usecases/ListAllBooks';
+import { SearchExternalBooks } from '../../core/usecases/SearchExternalBooks';
+
+// Series use cases
+import { GetSeriesWithBooks } from '../../core/usecases/GetSeriesWithBooks';
+import { ListAllSeries } from '../../core/usecases/ListAllSeries';
+import { GetBookSeries } from '../../core/usecases/GetBookSeries';
+import { ListSeriesNarrativePosts } from '../../core/usecases/ListSeriesNarrativePosts';
 
 const createUseCases = () => ({
   // Auth
@@ -94,9 +108,16 @@ const createUseCases = () => ({
   updatePost: new UpdatePost(infrastructure.repositories.post),
   deletePost: new DeletePost(infrastructure.repositories.post),
   getPostById: new GetPostById(infrastructure.repositories.post),
+  getPostsByIds: new GetPostsByIds(infrastructure.repositories.post),
   listAllPosts: new ListAllPosts(infrastructure.repositories.post),
   listPostsByBook: new ListPostsByBook(infrastructure.repositories.post),
   listPostsByUser: new ListPostsByUser(infrastructure.repositories.post),
+  savePostDraft: new SavePostDraft(
+    infrastructure.repositories.postDraft,
+    infrastructure.repositories.book
+  ),
+  getPostDraft: new GetPostDraft(infrastructure.repositories.postDraft),
+  deletePostDraft: new DeletePostDraft(infrastructure.repositories.postDraft),
 
   // Comment
   createComment: new CreateComment(
@@ -108,7 +129,10 @@ const createUseCases = () => ({
   getCommentById: new GetCommentById(infrastructure.repositories.comment),
   listAllComments: new ListAllComments(infrastructure.repositories.comment),
   listCommentsByPost: new ListCommentsByPost(infrastructure.repositories.comment),
+  listCommentTreeByPost: new ListCommentTreeByPost(infrastructure.repositories.comment),
   listCommentsByUser: new ListCommentsByUser(infrastructure.repositories.comment),
+  getCommentRelevanceVotesByUser: new GetCommentRelevanceVotesByUser(infrastructure.repositories.comment),
+  voteCommentRelevance: new VoteCommentRelevance(infrastructure.repositories.comment),
 
   // Notebook
   createNotebookEntry: new CreateNotebookEntry(
@@ -120,11 +144,24 @@ const createUseCases = () => ({
   listUserNotebooks: new ListUserNotebooks(infrastructure.repositories.notebook),
 
   // Book
-  createBook: new CreateBook(infrastructure.repositories.book),
+  createBook: new CreateBook(
+    infrastructure.repositories.book,
+    infrastructure.repositories.bookSeries
+  ),
   updateBook: new UpdateBook(infrastructure.repositories.book),
   getBooks: new GetBooks(infrastructure.repositories.book),
   getBookById: new GetBookById(infrastructure.repositories.book),
   listAllBooks: new ListAllBooks(infrastructure.repositories.book),
+  searchExternalBooks: new SearchExternalBooks(infrastructure.services.externalBookSearchProviders),
+
+  // Series
+  getSeriesWithBooks: new GetSeriesWithBooks(infrastructure.repositories.bookSeries),
+  listAllSeries: new ListAllSeries(infrastructure.repositories.bookSeries),
+  getBookSeries: new GetBookSeries(infrastructure.repositories.bookSeries),
+  listSeriesNarrativePosts: new ListSeriesNarrativePosts(
+    infrastructure.repositories.bookSeries,
+    infrastructure.repositories.post
+  ),
 });
 
 export type UseCases = ReturnType<typeof createUseCases>;
@@ -136,8 +173,6 @@ let useCasesInstance: UseCases | null = null;
  * Called once at app initialization
  */
 export const getUseCases = (): UseCases => {
-  if (!useCasesInstance) {
-    useCasesInstance = createUseCases();
-  }
+  useCasesInstance ??= createUseCases();
   return useCasesInstance;
 };

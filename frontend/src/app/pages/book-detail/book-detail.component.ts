@@ -1,26 +1,34 @@
-import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, NgZone, OnDestroy, OnInit, PLATFORM_ID, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, finalize, of, timeout } from 'rxjs';
-import { ApiService, Book, Notebook, Post } from '../../core/services/api.service';
+import { ApiService, Book, BookSeriesContext, Notebook, Post } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NavbarComponent } from '../../shared/navbar/navbar.component';
+import { FormatDatePipe } from '../../shared/pipes/format-date.pipe';
+import { StatusCardComponent } from '../../shared/status-card/status-card.component';
 
 @Component({
   selector: 'app-book-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavbarComponent],
+  imports: [CommonModule, FormsModule, NavbarComponent, FormatDatePipe, StatusCardComponent],
   templateUrl: './book-detail.component.html',
   styleUrl: './book-detail.component.css',
 })
-export class BookDetailComponent implements OnInit {
-  private apiService = inject(ApiService);
-  private authService = inject(AuthService);
-  private route = inject(ActivatedRoute);
-  private cdr = inject(ChangeDetectorRef);
-  private zone = inject(NgZone);
+export class BookDetailComponent implements OnInit, OnDestroy {
+  private static readonly MAX_STORY_WORDS = 40000;
+  private static readonly DRAFT_SYNC_DEBOUNCE_MS = 900;
+  private static readonly DRAFT_DEVICE_KEY = 'lampiao:device-id';
+  private readonly apiService = inject(ApiService);
+  private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
+  private draftSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   book: Book | null = null;
   posts: Post[] = [];
@@ -29,6 +37,9 @@ export class BookDetailComponent implements OnInit {
   userNotebook: Notebook | null = null;
   notebookBusy = false;
   notebookError = '';
+  seriesContext: BookSeriesContext[] = [];
+  seriesLoading = false;
+  seriesError = '';
 
   readonly statusOptions: Notebook['status'][] = ['Lido', 'Lendo', 'Quero ler'];
   readonly starValues = [1, 2, 3, 4, 5];
@@ -40,6 +51,9 @@ export class BookDetailComponent implements OnInit {
   postIsPublic = true;
   postBusy = false;
   postError = '';
+  writingPrompt = '';
+  writingSeriesId = '';
+  draftFeedback = '';
   postFilter: 'all' | 'public' | 'mine' = 'all';
   postAuthors: Record<string, string> = {};
 
@@ -81,6 +95,9 @@ export class BookDetailComponent implements OnInit {
 
     this.currentBookId = id;
     this.loadNotebookState(id);
+    this.loadSeriesContext(id);
+    this.applyWritingOnboardingFromQuery();
+    this.restorePostDraft();
 
     this.apiService
       .getBookById(id)
@@ -107,6 +124,13 @@ export class BookDetailComponent implements OnInit {
           });
         },
       });
+  }
+
+  ngOnDestroy(): void {
+    if (this.draftSyncTimer) {
+      clearTimeout(this.draftSyncTimer);
+      this.draftSyncTimer = null;
+    }
   }
 
   addToNotebook(): void {
@@ -272,6 +296,11 @@ export class BookDetailComponent implements OnInit {
       return;
     }
 
+    if (this.isOverStoryWordLimit) {
+      this.postError = `Este texto ultrapassa o limite de ${BookDetailComponent.MAX_STORY_WORDS.toLocaleString('pt-BR')} palavras.`;
+      return;
+    }
+
     this.postBusy = true;
     this.postError = '';
 
@@ -298,6 +327,7 @@ export class BookDetailComponent implements OnInit {
             this.postText = '';
             this.postIsPublic = true;
             this.postError = '';
+            this.clearPostDraft();
             this.loadAuthorsForPosts([post]);
           });
         },
@@ -307,6 +337,16 @@ export class BookDetailComponent implements OnInit {
           });
         },
       });
+  }
+
+  onPostDraftChange(): void {
+    this.persistPostDraft();
+    this.scheduleDraftSync();
+  }
+
+  clearDraftManually(): void {
+    this.clearPostDraft();
+    this.draftFeedback = 'Rascunho limpo.';
   }
 
   isMine(post: Post): boolean {
@@ -319,19 +359,6 @@ export class BookDetailComponent implements OnInit {
     }
 
     return this.postAuthors[post.userId] || `Usuário #${post.userId}`;
-  }
-
-  formatPostDate(post: Post): string {
-    if (!post.createdAt) return 'Data indisponível';
-    const date = new Date(post.createdAt);
-    if (Number.isNaN(date.getTime())) return 'Data indisponível';
-    return new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(date);
   }
 
   startEditing(post: Post): void {
@@ -439,6 +466,244 @@ export class BookDetailComponent implements OnInit {
     this.pendingDeletePostId = null;
   }
 
+  goToSeries(seriesId: string): void {
+    if (!seriesId) return;
+    this.router.navigate(['/series', seriesId]);
+  }
+
+  get hasWritingOnboarding(): boolean {
+    return Boolean(this.writingPrompt || this.writingSeriesId);
+  }
+
+  get postWordCount(): number {
+    return this.countWords(this.postText);
+  }
+
+  get storyLengthHint(): string {
+    const count = this.postWordCount;
+    if (!count) {
+      return 'Comece a escrever: você pode publicar contos, novelas ou capítulos.';
+    }
+
+    const remaining = BookDetailComponent.MAX_STORY_WORDS - count;
+    if (remaining >= 0) {
+      return `Você ainda pode escrever ${remaining.toLocaleString('pt-BR')} palavras nesta publicação.`;
+    }
+
+    return `Você excedeu o limite em ${Math.abs(remaining).toLocaleString('pt-BR')} palavras.`;
+  }
+
+  get storyLengthStatusClass(): string {
+    const count = this.postWordCount;
+    if (!count) return 'story-status-idle';
+    if (count <= BookDetailComponent.MAX_STORY_WORDS) return 'story-status-ok';
+    return 'story-status-high';
+  }
+
+  get isOverStoryWordLimit(): boolean {
+    return this.postWordCount > BookDetailComponent.MAX_STORY_WORDS;
+  }
+
+  private applyWritingOnboardingFromQuery(): void {
+    const compose = this.route.snapshot.queryParamMap.get('compose');
+    const prompt = this.route.snapshot.queryParamMap.get('prompt')?.trim() || '';
+    const seriesId = this.route.snapshot.queryParamMap.get('fromSeries')?.trim() || '';
+
+    if (compose !== '1') {
+      return;
+    }
+
+    this.writingPrompt = prompt;
+    this.writingSeriesId = seriesId;
+
+    if (!this.postTitle.trim()) {
+      this.postTitle = 'Minha primeira cena neste universo';
+    }
+
+    if (prompt && !this.postText.trim()) {
+      this.postText = `${prompt}\n\n`;
+    }
+
+    this.persistPostDraft();
+  }
+
+  get hasDraft(): boolean {
+    return Boolean(this.postTitle.trim() || this.postText.trim());
+  }
+
+  private get postDraftStorageKey(): string {
+    const userId = this.currentUserId || 'anonymous';
+    return `lampiao:post-draft:${userId}:${this.currentBookId}`;
+  }
+
+  private restorePostDraft(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    const deviceId = this.getOrCreateDeviceId();
+
+    this.apiService
+      .getPostDraft(this.currentBookId, deviceId)
+      .pipe(
+        timeout(8000),
+        catchError(() => of({ draft: null }))
+      )
+      .subscribe(({ draft }) => {
+        this.zone.run(() => {
+          if (draft) {
+            if (!this.postTitle.trim() && draft.title) {
+              this.postTitle = draft.title;
+            }
+            if (!this.postText.trim() && draft.text) {
+              this.postText = draft.text;
+            }
+            if (typeof draft.isItPublic === 'boolean') {
+              this.postIsPublic = draft.isItPublic;
+            }
+            this.draftFeedback = 'Rascunho sincronizado restaurado.';
+            this.persistPostDraft();
+            this.cdr.detectChanges();
+            return;
+          }
+
+          this.restorePostDraftFromLocal();
+          this.cdr.detectChanges();
+        });
+      });
+  }
+
+  private restorePostDraftFromLocal(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    const raw = localStorage.getItem(this.postDraftStorageKey);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as { title?: string; text?: string; isPublic?: boolean };
+      if (!this.postTitle.trim() && parsed.title) {
+        this.postTitle = parsed.title;
+      }
+      if (!this.postText.trim() && parsed.text) {
+        this.postText = parsed.text;
+      }
+      if (typeof parsed.isPublic === 'boolean') {
+        this.postIsPublic = parsed.isPublic;
+      }
+      this.draftFeedback = 'Rascunho restaurado automaticamente.';
+    } catch {
+      localStorage.removeItem(this.postDraftStorageKey);
+    }
+  }
+
+  private persistPostDraft(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    const payload = {
+      title: this.postTitle,
+      text: this.postText,
+      isPublic: this.postIsPublic,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(this.postDraftStorageKey, JSON.stringify(payload));
+    this.draftFeedback = 'Rascunho salvo automaticamente.';
+  }
+
+  private clearPostDraft(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    localStorage.removeItem(this.postDraftStorageKey);
+    const deviceId = this.getOrCreateDeviceId();
+    this.apiService
+      .deletePostDraft(this.currentBookId, deviceId)
+      .pipe(
+        timeout(8000),
+        catchError(() => of(void 0))
+      )
+      .subscribe();
+    this.draftFeedback = '';
+  }
+
+  private scheduleDraftSync(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    if (this.draftSyncTimer) {
+      clearTimeout(this.draftSyncTimer);
+    }
+
+    this.draftSyncTimer = setTimeout(() => {
+      this.syncDraftToBackend(this.postTitle, this.postText, this.postIsPublic);
+      this.draftSyncTimer = null;
+    }, BookDetailComponent.DRAFT_SYNC_DEBOUNCE_MS);
+  }
+
+  private syncDraftToBackend(title: string, text: string, isItPublic: boolean): void {
+    if (!isPlatformBrowser(this.platformId) || !this.currentBookId) {
+      return;
+    }
+
+    const deviceId = this.getOrCreateDeviceId();
+
+    this.apiService
+      .savePostDraft(this.currentBookId, {
+        deviceId,
+        title,
+        text,
+        isItPublic,
+      })
+      .pipe(
+        timeout(8000),
+        catchError(() => of(null))
+      )
+      .subscribe((draft) => {
+        if (!draft) {
+          return;
+        }
+
+        this.zone.run(() => {
+          this.draftFeedback = 'Rascunho salvo e sincronizado.';
+          this.cdr.detectChanges();
+        });
+      });
+  }
+
+  private getOrCreateDeviceId(): string {
+    if (!isPlatformBrowser(this.platformId)) {
+      return 'server-device';
+    }
+
+    const existing = localStorage.getItem(BookDetailComponent.DRAFT_DEVICE_KEY);
+    if (existing) {
+      return existing;
+    }
+
+    const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `device-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    localStorage.setItem(BookDetailComponent.DRAFT_DEVICE_KEY, generated);
+    return generated;
+  }
+
+  private countWords(value: string): number {
+    return value
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .length;
+  }
+
   private loadNotebookState(bookId: string): void {
     this.apiService
       .getMyNotebooks()
@@ -449,6 +714,33 @@ export class BookDetailComponent implements OnInit {
       .subscribe(notebooks => {
         this.zone.run(() => {
           this.userNotebook = notebooks.find(n => n.bookId === bookId) ?? null;
+          this.cdr.detectChanges();
+        });
+      });
+  }
+
+  private loadSeriesContext(bookId: string): void {
+    this.seriesLoading = true;
+    this.seriesError = '';
+
+    this.apiService
+      .getSeriesForBook(bookId)
+      .pipe(
+        timeout(10000),
+        catchError(() => {
+          this.seriesError = 'Não foi possível carregar contexto de série agora.';
+          return of([] as BookSeriesContext[]);
+        }),
+        finalize(() => {
+          this.zone.run(() => {
+            this.seriesLoading = false;
+            this.cdr.detectChanges();
+          });
+        })
+      )
+      .subscribe(series => {
+        this.zone.run(() => {
+          this.seriesContext = series;
           this.cdr.detectChanges();
         });
       });

@@ -6,11 +6,20 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import { join } from 'node:path';
+import { appLogger } from './app/core/utils/app-logger';
+import { LOG_EVENTS } from './app/core/utils/log-events';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
-const angularApp = new AngularNodeAppEngine();
+const defaultAllowedHosts = ['localhost', '127.0.0.1', 'host.docker.internal'];
+const envAllowedHosts = (process.env['SSR_ALLOWED_HOSTS'] ?? '')
+  .split(',')
+  .map((host) => host.trim())
+  .filter(Boolean);
+const angularApp = new AngularNodeAppEngine({
+  allowedHosts: [...defaultAllowedHosts, ...envAllowedHosts],
+});
 
 /**
  * Example Express Rest API endpoints can be defined here.
@@ -58,7 +67,10 @@ if (isMainModule(import.meta.url) || process.env['pm_id']) {
       throw error;
     }
 
-    console.log(`Node Express server listening on http://localhost:${port}`);
+    appLogger.info(LOG_EVENTS.FRONTEND_SERVER_STARTED, 'Angular SSR server started', {
+      port,
+      url: `http://localhost:${port}`,
+    });
   });
 }
 

@@ -10,11 +10,12 @@ import { toPublicUserDTO } from '../presenters/UserPresenter';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeOptionalPlainText } from '../validation/sanitizers';
 import { googleAuthSchema, loginSchema, registerSchema } from '../validation/schemas';
+import { unauthorized, validationError } from '../http/respondError';
 
 const router = Router();
 const refreshTokenService = new JwtTokenService({
   secret: process.env.JWT_REFRESH_SECRET || `${process.env.JWT_SECRET || 'lampiao-dev-secret'}:refresh`,
-  expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as string,
+  expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 });
 
 // Get use cases from container (no direct instantiation)
@@ -52,7 +53,7 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
     res.status(201).json(toPublicUserDTO(user));
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'AUTH_REGISTER_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -72,7 +73,7 @@ router.post('/google', loginRateLimiter, async (req: Request, res: Response, nex
     });
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'AUTH_GOOGLE_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -85,7 +86,7 @@ router.post('/google/link', authenticate, async (req: AuthenticatedRequest, res:
     const authUserId = req.auth?.userId;
 
     if (!authUserId) {
-      return res.status(401).json({ message: 'Missing bearer token' });
+      return unauthorized(res, 'Voce precisa estar autenticado para vincular uma conta Google.', 'AUTH_LINK_GOOGLE_REQUIRES_SESSION');
     }
 
     const user = await linkGoogleAccount.execute({
@@ -100,7 +101,7 @@ router.post('/google/link', authenticate, async (req: AuthenticatedRequest, res:
     });
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'AUTH_LINK_GOOGLE_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -124,7 +125,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response, next
     });
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'AUTH_LOGIN_INVALID_PAYLOAD');
     }
 
     next(error);
@@ -138,14 +139,14 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
       : undefined;
 
     if (!refreshToken || tokenBlacklistService.isRevoked(refreshToken)) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      return unauthorized(res, 'Nao foi possivel renovar a sessao com o refresh token informado.', 'AUTH_REFRESH_TOKEN_INVALID');
     }
 
     const payload = await refreshTokenService.verify(refreshToken);
     const user = await getUserById.execute(String(payload.sub));
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      return unauthorized(res, 'Nao foi possivel renovar a sessao porque o usuario associado nao foi encontrado.', 'AUTH_REFRESH_USER_NOT_FOUND');
     }
 
     tokenBlacklistService.revoke(refreshToken, payload.exp);

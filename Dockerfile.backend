@@ -1,0 +1,63 @@
+# Multi-stage Dockerfile for Lampiao Backend (Node.js + TypeScript)
+# Build stage: Compile TypeScript to JavaScript
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Install build tools for native module compilation (gcc, python, make)
+RUN apk add --no-cache python3 make g++
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Install dependencies (including devDependencies for build)
+# Use --verbose to see details if build fails
+RUN npm ci --verbose
+
+# Copy source code
+COPY backend/src ./src
+COPY backend/tsconfig.json ./
+
+# Build TypeScript to JavaScript
+RUN npm run build
+
+# Runtime stage: Minimal image with production code only
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install build tools (required for pg native bindings at runtime)
+RUN apk add --no-cache python3 make g++ libpq
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S api -u 1001
+
+# Install production dependencies only
+COPY backend/package*.json ./
+RUN npm ci --only=production --verbose && \
+    npm cache clean --force
+
+# Copy compiled code from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Copy config and migrations for database setup
+COPY backend/config ./config
+COPY backend/migrations ./migrations
+COPY backend/seeders ./seeders
+
+# Change ownership to non-root user
+RUN chown -R api:nodejs /app
+
+# Switch to non-root user
+USER api
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Expose port
+EXPOSE 3001
+
+# Start application
+CMD ["node", "dist/adapters/index.js"]

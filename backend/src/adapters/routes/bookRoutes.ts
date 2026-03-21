@@ -8,6 +8,7 @@ import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeBookImageUrl, sanitizeOptionalPlainText, sanitizePlainText } from '../validation/sanitizers';
 import { createBookSchema, updateBookSchema } from '../validation/schemas';
+import { badRequest, conflict, notFound, validationError } from '../http/respondError';
 
 const router = Router();
 
@@ -36,14 +37,14 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid book id' });
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'BOOK_ID_INVALID');
     }
 
     const book = await getBookById.execute(id);
     if (book) {
       res.json(book);
     } else {
-      res.status(404).json({ message: 'Book not found' });
+      notFound(res, 'O livro solicitado nao foi encontrado.', 'BOOK_NOT_FOUND');
     }
   } catch (error) {
     next(error);
@@ -97,19 +98,19 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response,
     const err = error as { name?: string; message?: string };
 
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'BOOK_CREATE_INVALID_PAYLOAD');
     }
 
     if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ message: 'ISBN already exists' });
+      return conflict(res, 'Ja existe um livro cadastrado com este ISBN.', 'BOOK_ISBN_CONFLICT');
     }
 
     if (err.name === 'SequelizeValidationError') {
-      return res.status(400).json({ message: err.message || 'Invalid book payload' });
+      return validationError(res, err.message || 'Os dados do livro sao invalidos.', 'BOOK_CREATE_INVALID_DATA');
     }
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({ message: error.message });
+      return validationError(res, error.message, 'BOOK_CREATE_INVALID_DATA');
     }
 
     next(error);
@@ -120,7 +121,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid book id' });
+      return badRequest(res, 'O identificador do livro informado e invalido.', 'BOOK_ID_INVALID');
     }
 
     const payload = parseOrThrow(updateBookSchema, req.body);
@@ -170,19 +171,19 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
     const err = error as { name?: string; message?: string };
 
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'BOOK_UPDATE_INVALID_PAYLOAD');
     }
 
     if (err.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ message: 'ISBN already exists' });
+      return conflict(res, 'Ja existe um livro cadastrado com este ISBN.', 'BOOK_ISBN_CONFLICT');
     }
 
     if (err.name === 'SequelizeValidationError') {
-      return res.status(400).json({ message: err.message || 'Invalid book payload' });
+      return validationError(res, err.message || 'Os dados do livro sao invalidos.', 'BOOK_UPDATE_INVALID_DATA');
     }
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({ message: error.message });
+      return validationError(res, error.message, 'BOOK_UPDATE_INVALID_DATA');
     }
 
     next(error);

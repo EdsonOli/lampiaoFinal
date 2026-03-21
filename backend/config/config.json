@@ -1,21 +1,23 @@
 
 {
   "development": {
-    "username": "root",
-    "password": "root",
-    "database": "lampiao_api",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
+    "username": "lampiao",
+    "password": "lampiao_dev_password",
+    "database": "lampiao_db",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
   },
   "test": {
-    "username": "root",
-    "password": "root",
-    "database": "lampiao_api_test",
-    "host": "127.0.0.1",
-    "dialect": "mysql"
+    "username": "lampiao",
+    "password": "lampiao_dev_password",
+    "database": "lampiao_test_db",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
   },
   "production": {
     "use_env_variable": "DATABASE_URL",
-    "dialect": "mysql"
+    "dialect": "postgres"
   }
 }

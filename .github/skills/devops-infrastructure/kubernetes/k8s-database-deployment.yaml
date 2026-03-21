@@ -1,0 +1,197 @@
+---
+# Lampiao Database Deployment (PostgreSQL)
+# StatefulSet ensures persistent identity for database replicas
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: lampiao-prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi  # Adjust based on your data size
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: lampiao-prod
+  labels:
+    app: lampiao
+    component: postgres
+spec:
+  serviceName: postgres
+  replicas: 1  # For production HA, use Patroni/pg_failover_slots
+  selector:
+    matchLabels:
+      app: lampiao
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: lampiao
+        component: postgres
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: lampiao-config
+                  key: db.user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lampiao-secrets
+                  key: db.password
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: lampiao-config
+                  key: db.name
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8"
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+
+          # Liveness: Is the database accepting connections?
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness: Is the database ready to accept traffic?
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+          # Resource requests and limits
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+
+          # Volume mount for data persistence
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+
+  # Persistent volume claim template for StatefulSet
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+# Headless Service for StatefulSet DNS discovery
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lampiao-prod
+  labels:
+    app: lampiao
+    component: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: lampiao
+    component: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      protocol: TCP
+
+---
+# Backup CronJob for PostgreSQL
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: lampiao-prod
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: postgres-backup
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  BACKUP_FILE="/backup/lampiao_db_$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz"
+                  pg_dump -h postgres -U $POSTGRES_USER $POSTGRES_DB | gzip > $BACKUP_FILE
+                  echo "Backup created: $BACKUP_FILE"
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: lampiao-config
+                      key: db.user
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: lampiao-secrets
+                      key: db.password
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: lampiao-config
+                      key: db.name
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          volumes:
+            - name: backup-storage
+              emptyDir: {}  # Replace with PVC for persistent backups
+          restartPolicy: OnFailure

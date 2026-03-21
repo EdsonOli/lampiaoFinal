@@ -4,90 +4,45 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
-export interface Post {
-  id: string;
-  title: string;
-  text: string;
-  isItPublic: boolean;
-  userId: string;
-  bookId: string;
-  createdAt?: string;
-}
+// Re-export all domain models for backward-compatible imports
+export type {
+  Post,
+  CreatePostInput,
+  UpdatePostInput,
+  PostDraftPayload,
+  Book,
+  BookSeriesContext,
+  CreateBookFromSearchInput,
+  SeriesNarrativePost,
+  Notebook,
+  CreateNotebookInput,
+  UpdateNotebookInput,
+  UserProfile,
+  UpdateProfileInput,
+  SignedUploadResponse,
+} from '../models';
 
-export interface CreatePostInput {
-  title: string;
-  text: string;
-  bookId: string;
-  isItPublic?: boolean;
-}
-
-export interface UpdatePostInput {
-  title?: string;
-  text?: string;
-  isItPublic?: boolean;
-}
-
-export interface Book {
-  id: string;
-  name: string;
-  writer: string;
-  genre: string;
-  nPages: number;
-  yearPublication: number;
-  isbn: string;
-  publishingCompany: string;
-  img?: string;
-  synopsis?: string;
-}
-
-export interface Notebook {
-  id: string;
-  userId: string;
-  bookId: string;
-  grade?: number;
-  status: 'Lido' | 'Lendo' | 'Quero ler';
-  favorite: boolean;
-}
-
-export interface CreateNotebookInput {
-  bookId: string;
-  grade?: number;
-  status: Notebook['status'];
-  favorite?: boolean;
-}
-
-export interface UpdateNotebookInput {
-  grade?: number;
-  status?: Notebook['status'];
-  favorite?: boolean;
-}
-
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  nickname: string;
-  img?: string;
-}
-
-export interface UpdateProfileInput {
-  name?: string;
-  email?: string;
-  nickname?: string;
-  password?: string;
-  img?: string;
-}
-
-export interface SignedUploadResponse {
-  uploadUrl: string;
-  publicUrl: string;
-  path: string;
-}
+import type {
+  Post,
+  CreatePostInput,
+  UpdatePostInput,
+  PostDraftPayload,
+  Book,
+  BookSeriesContext,
+  CreateBookFromSearchInput,
+  SeriesNarrativePost,
+  Notebook,
+  CreateNotebookInput,
+  UpdateNotebookInput,
+  UserProfile,
+  UpdateProfileInput,
+  SignedUploadResponse,
+} from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private http = inject(HttpClient);
-  private platformId = inject(PLATFORM_ID);
+  private readonly http = inject(HttpClient);
+  private readonly platformId = inject(PLATFORM_ID);
 
   private get baseUrl(): string {
     return isPlatformBrowser(this.platformId)
@@ -117,6 +72,19 @@ export class ApiService {
   deletePost(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/posts/${id}`);
   }
+  getPostDraft(bookId: string, deviceId: string): Observable<{ draft: PostDraftPayload | null }> {
+    return this.http.get<{ draft: PostDraftPayload | null }>(`${this.baseUrl}/posts/drafts/${bookId}`, {
+      params: { deviceId },
+    });
+  }
+  savePostDraft(bookId: string, input: { deviceId: string; title?: string; text?: string; isItPublic?: boolean }): Observable<PostDraftPayload> {
+    return this.http.put<PostDraftPayload>(`${this.baseUrl}/posts/drafts/${bookId}`, input);
+  }
+  deletePostDraft(bookId: string, deviceId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/posts/drafts/${bookId}`, {
+      params: { deviceId },
+    });
+  }
 
   // Books
   getBooks(): Observable<Book[]> {
@@ -127,6 +95,9 @@ export class ApiService {
   }
   createBook(input: Omit<Book, 'id'>): Observable<Book> {
     return this.http.post<Book>(`${this.baseUrl}/books`, input);
+  }
+  createBookFromSearch(input: CreateBookFromSearchInput): Observable<Book> {
+    return this.http.post<Book>(`${this.baseUrl}/search-books/import`, input);
   }
   updateBook(id: string, input: Partial<Omit<Book, 'id'>>): Observable<Book> {
     return this.http.put<Book>(`${this.baseUrl}/books/${id}`, input);
@@ -181,6 +152,25 @@ export class ApiService {
         'Content-Type': file.type,
       },
     });
+  }
+
+  // Series
+  getSeriesWithBooks(seriesId: string): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/series/${seriesId}`);
+  }
+
+  getSeriesForBook(bookId: string): Observable<BookSeriesContext[]> {
+    return this.http.get<BookSeriesContext[]>(`${this.baseUrl}/series/by-book/${bookId}`);
+  }
+
+  getSeriesNarrativePosts(seriesId: string, limit = 20): Observable<SeriesNarrativePost[]> {
+    return this.http.get<SeriesNarrativePost[]>(`${this.baseUrl}/series/${seriesId}/posts`, {
+      params: { limit: String(limit) },
+    });
+  }
+
+  listAllSeries(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/series`);
   }
 }
 

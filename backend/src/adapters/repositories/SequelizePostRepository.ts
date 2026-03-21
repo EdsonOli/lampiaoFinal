@@ -1,5 +1,6 @@
 import { Post } from '../../core/domain/Post';
-import { CreatePostInput, PostRepository, UpdatePostInput } from '../../core/ports/PostRepository';
+import { CreatePostInput, PostCursor, PostRepository, UpdatePostInput } from '../../core/ports/PostRepository';
+import { Op } from 'sequelize';
 import { Post as PostModel } from '../models/PostModel';
 
 function mapPost(post: PostModel): Post {
@@ -38,6 +39,22 @@ export class SequelizePostRepository implements PostRepository {
     return post ? mapPost(post) : null;
   }
 
+  async findByIds(ids: string[]): Promise<Post[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const posts = await PostModel.findAll({
+      where: {
+        id: {
+          [Op.in]: ids,
+        },
+      },
+    });
+
+    return posts.map(mapPost);
+  }
+
   async findByUserId(userId: string): Promise<Post[]> {
     const posts = await PostModel.findAll({ where: { user_id: userId } });
     return posts.map(mapPost);
@@ -45,6 +62,46 @@ export class SequelizePostRepository implements PostRepository {
 
   async findByBookId(bookId: string): Promise<Post[]> {
     const posts = await PostModel.findAll({ where: { book_id: bookId } });
+    return posts.map(mapPost);
+  }
+
+  async findPublicByBookIds(
+    bookIds: string[],
+    options?: { limit?: number; cursor?: PostCursor }
+  ): Promise<Post[]> {
+    if (bookIds.length === 0) {
+      return [];
+    }
+
+    const limit = Math.max(1, Math.min(100, options?.limit ?? 20));
+    const cursor = options?.cursor;
+
+    const whereCursor = cursor
+      ? {
+          [Op.or]: [
+            { createdAt: { [Op.lt]: cursor.createdAt } },
+            {
+              [Op.and]: [{ createdAt: cursor.createdAt }, { id: { [Op.lt]: cursor.id } }],
+            },
+          ],
+        }
+      : {};
+
+    const posts = await PostModel.findAll({
+      where: {
+        book_id: {
+          [Op.in]: bookIds,
+        },
+        is_it_public: true,
+        ...whereCursor,
+      },
+      order: [
+        ['createdAt', 'DESC'],
+        ['id', 'DESC'],
+      ],
+      limit,
+    });
+
     return posts.map(mapPost);
   }
 

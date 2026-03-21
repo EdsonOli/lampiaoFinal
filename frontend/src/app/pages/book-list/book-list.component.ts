@@ -1,85 +1,51 @@
-import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { catchError, finalize, forkJoin, map, of, timeout } from 'rxjs';
-import { ApiService, Book } from '../../core/services/api.service';
+import { Router } from '@angular/router';
+import { catchError, finalize, of, timeout, Subject, debounceTime, switchMap, takeUntil } from 'rxjs';
+import { ApiService, Book, CreateBookFromSearchInput } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { GoogleBooksService, GoogleBookCandidate } from '../../core/services/google-books.service';
+import { IntegratedBookSearchService, BookSearchResult } from '../../core/services/integrated-book-search.service';
 import { NavbarComponent } from '../../shared/navbar/navbar.component';
+import { StatusCardComponent } from '../../shared/status-card/status-card.component';
 
 @Component({
   selector: 'app-book-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
+  imports: [CommonModule, FormsModule, NavbarComponent, StatusCardComponent],
   templateUrl: './book-list.component.html',
   styleUrl: './book-list.component.css',
 })
-export class BookListComponent implements OnInit {
-  private apiService = inject(ApiService);
-  private authService = inject(AuthService);
-  private googleBooks = inject(GoogleBooksService);
-  private cdr = inject(ChangeDetectorRef);
-  private zone = inject(NgZone);
+export class BookListComponent implements OnInit, OnDestroy {
+  private readonly apiService = inject(ApiService);
+  private readonly authService = inject(AuthService);
+  private readonly integratedSearch = inject(IntegratedBookSearchService);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
+  private readonly router = inject(Router);
+  private readonly destroy$ = new Subject<void>();
 
-  // --- Lista principal ---
-  books: Book[] = [];
-  loading = true;
-  error = '';
-
-  // --- Filtro local ---
-  filterQuery = '';
-  get filteredBooks(): Book[] {
-    const q = this.filterQuery.trim().toLowerCase();
-    if (!q) return this.books;
-    return this.books.filter(b =>
-      b.name.toLowerCase().includes(q) ||
-      b.writer.toLowerCase().includes(q) ||
-      b.genre.toLowerCase().includes(q)
-    );
-  }
+  // --- Busca e resultados ---
+  searchQuery = '';
+  searchResults: BookSearchResult[] = [];
+  searchLoading = false;
+  searchError = '';
+  private readonly searchQuery$ = new Subject<string>();
+  private readonly debounceMs = 400;
+  private readonly pageSize = 20;
+  private apiStartIndex = 0;
+  apiHasMore = true;
+  loadingMore = false;
+  currentSearchSource: 'local' | 'api' | null = null;
+  pendingBookActionId: string | null = null;
 
   get isAdmin(): boolean {
     return this.authService.currentUser?.role === 'admin';
   }
 
-  // --- Modal de criação ---
-  showModal = false;
-  modalStep: 'search' | 'form' = 'search';
-  formMode: 'create' | 'edit' = 'create';
-  editingBookId: string | null = null;
-
-  googleQuery = '';
-  googleResults: GoogleBookCandidate[] = [];
-  selectedGoogleIds = new Set<string>();
-  showOnlyCompleteCandidates = true;
-  googleLoading = false;
-  googleLoadingMore = false;
-  googleHasMore = true;
-  private readonly googlePageSize = 20;
-  private googleStartIndex = 0;
-  bulkSaving = false;
-  googleError = '';
-  private searchTimer: ReturnType<typeof setTimeout> | null = null;
-
-  get existingIsbnSet(): Set<string> {
-    return new Set(
-      this.books
-        .map(book => this.normalizeIsbn(book.isbn))
-        .filter(isbn => Boolean(isbn))
-    );
-  }
-
-  get visibleGoogleResults(): GoogleBookCandidate[] {
-    if (!this.showOnlyCompleteCandidates) return this.googleResults;
-    return this.googleResults.filter(candidate => this.isCandidateBulkValid(candidate));
-  }
-
-  get hiddenIncompleteCount(): number {
-    return this.googleResults.length - this.visibleGoogleResults.length;
-  }
-
+  // --- Modal para criar manualmente (apenas admin) ---
+  showCreateModal = false;
   form: Omit<Book, 'id'> = {
     name: '', writer: '', genre: '', nPages: 0,
     yearPublication: new Date().getFullYear(),
@@ -93,365 +59,296 @@ export class BookListComponent implements OnInit {
   coverPreviewUrl = '';
 
   ngOnInit(): void {
-    this.loadBooks();
-  }
-
-  private loadBooks(): void {
-    this.apiService.getBooks().pipe(
-      timeout(10000),
-      catchError(() => {
-        this.zone.run(() => {
-          this.error = 'Não foi possível carregar os livros. Servidor pode estar indisponível.';
-        });
-        return of<Book[]>([]);
-      }),
-      finalize(() => {
-        this.zone.run(() => {
-          this.loading = false;
-          this.cdr.detectChanges();
-        });
-      })
-    ).subscribe({
-      next: books => {
-        this.zone.run(() => { this.books = books; this.cdr.detectChanges(); });
-      },
-    });
-  }
-
-  // --- Ações do modal ---
-  openModal(): void {
-    this.showModal = true;
-    this.modalStep = 'search';
-    this.formMode = 'create';
-    this.editingBookId = null;
-    this.googleQuery = '';
-    this.googleResults = [];
-    this.googleHasMore = true;
-    this.googleStartIndex = 0;
-    this.googleLoading = false;
-    this.googleLoadingMore = false;
-    this.showOnlyCompleteCandidates = true;
-    this.googleError = '';
-    this.resetForm();
-    this.saveError = '';
-  }
-
-  closeModal(): void {
-    this.showModal = false;
-    if (this.searchTimer) clearTimeout(this.searchTimer);
-  }
-
-  onGoogleInput(): void {
-    if (this.searchTimer) clearTimeout(this.searchTimer);
-
-    const query = this.googleQuery.trim();
-    if (query.length < 3) {
-      this.googleResults = [];
-      this.selectedGoogleIds.clear();
-      this.googleHasMore = true;
-      this.googleStartIndex = 0;
-      this.googleLoading = false;
-      this.googleLoadingMore = false;
-      return;
-    }
-
-    this.googleLoading = true;
-    this.googleLoadingMore = false;
-    this.googleHasMore = true;
-    this.googleStartIndex = 0;
-    this.googleError = '';
-    this.cdr.detectChanges();
-
-    this.searchTimer = setTimeout(() => {
-      this.fetchGooglePage(true);
-    }, 400);
-  }
-
-  onResultsScroll(event: Event): void {
-    if (this.googleLoading || this.googleLoadingMore || !this.googleHasMore) return;
-
-    const target = event.target as HTMLElement;
-    const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 48;
-
-    if (nearBottom) {
-      this.fetchGooglePage(false);
-    }
-  }
-
-  selectCandidate(candidate: GoogleBookCandidate): void {
-    this.formMode = 'create';
-    this.editingBookId = null;
-    this.form = {
-      name: candidate.name,
-      writer: candidate.writer,
-      genre: candidate.genre,
-      nPages: candidate.nPages,
-      yearPublication: candidate.yearPublication,
-      isbn: candidate.isbn,
-      publishingCompany: candidate.publishingCompany,
-      img: candidate.img ?? '',
-      synopsis: candidate.synopsis ?? '',
-    };
-    this.coverPreviewUrl = this.form.img || '';
-    this.modalStep = 'form';
-  }
-
-  toggleCandidate(candidate: GoogleBookCandidate): void {
-    if (this.isAlreadyRegistered(candidate)) return;
-
-    if (this.selectedGoogleIds.has(candidate.googleId)) {
-      this.selectedGoogleIds.delete(candidate.googleId);
-    } else {
-      this.selectedGoogleIds.add(candidate.googleId);
-    }
-  }
-
-  isCandidateSelected(candidate: GoogleBookCandidate): boolean {
-    return this.selectedGoogleIds.has(candidate.googleId);
-  }
-
-  selectAllCandidates(): void {
-    this.visibleGoogleResults.forEach(result => {
-      if (!this.isAlreadyRegistered(result)) {
-        this.selectedGoogleIds.add(result.googleId);
-      }
-    });
-  }
-
-  clearSelectedCandidates(): void {
-    this.selectedGoogleIds.clear();
-  }
-
-  submitSelectedBooks(): void {
-    if (this.bulkSaving) return;
-
-    const selectedCandidates = this.googleResults.filter(result => this.selectedGoogleIds.has(result.googleId));
-    if (selectedCandidates.length === 0) {
-      this.googleError = 'Selecione pelo menos um livro para cadastrar em lote.';
-      return;
-    }
-
-    const validCandidates: GoogleBookCandidate[] = [];
-    const invalidCandidates: GoogleBookCandidate[] = [];
-
-    selectedCandidates.forEach(candidate => {
-      if (this.isAlreadyRegistered(candidate)) {
-        invalidCandidates.push(candidate);
-        return;
-      }
-
-      if (this.isCandidateBulkValid(candidate)) {
-        validCandidates.push(candidate);
-      } else {
-        invalidCandidates.push(candidate);
-      }
-    });
-
-    if (validCandidates.length === 0) {
-      this.googleError = 'Os livros selecionados nao possuem os campos obrigatórios (titulo, autor, ISBN e editora).';
-      return;
-    }
-
-    this.bulkSaving = true;
-    this.googleError = '';
-
-    const createRequests = validCandidates.map(candidate => {
-      const payload: Omit<Book, 'id'> = {
-        name: candidate.name,
-        writer: candidate.writer,
-        genre: candidate.genre?.trim() || 'Nao informado',
-        nPages: candidate.nPages > 0 ? candidate.nPages : 1,
-        yearPublication: candidate.yearPublication > 0 ? candidate.yearPublication : new Date().getFullYear(),
-        isbn: candidate.isbn,
-        publishingCompany: candidate.publishingCompany,
-        img: candidate.img || undefined,
-        synopsis: candidate.synopsis || undefined,
-      };
-
-      return this.apiService.createBook(payload).pipe(
-        timeout(10000),
-        map(book => ({ ok: true as const, book, candidate })),
-        catchError((error: HttpErrorResponse) => of({ ok: false as const, error, candidate }))
-      );
-    });
-
-    forkJoin(createRequests)
+    // Setup busca com debounce
+    this.searchQuery$
       .pipe(
-        timeout(10000),
-        catchError(() => {
-          return of([] as { ok: boolean; book?: Book; error?: HttpErrorResponse; candidate: GoogleBookCandidate }[]);
+        debounceTime(this.debounceMs),
+        switchMap((query) => {
+          this.searchLoading = true;
+          this.searchError = '';
+          this.apiStartIndex = 0;
+          this.apiHasMore = true;
+          this.currentSearchSource = null;
+
+          const trimmed = query.trim();
+          if (!trimmed) {
+            this.searchResults = [];
+            this.searchLoading = false;
+            return of<BookSearchResult[]>([]);
+          }
+
+          return this.integratedSearch.searchBooks(trimmed, 0, this.pageSize).pipe(
+            timeout(10000),
+            catchError(() => {
+              this.zone.run(() => {
+                this.searchError = 'Erro ao buscar livros. Verifique sua conexão.';
+              });
+              return of<BookSearchResult[]>([]);
+            })
+          );
         }),
-        finalize(() => {
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (results) => {
           this.zone.run(() => {
-            this.bulkSaving = false;
+            this.searchResults = results;
+            this.searchLoading = false;
+
+            // Detect source from results
+            if (results.length > 0) {
+              this.currentSearchSource = results[0].source;
+            }
+
+            if (results.length === 0 && this.searchQuery.trim()) {
+              this.searchError = 'Nenhum livro encontrado. Tente outro termo.';
+            }
+
             this.cdr.detectChanges();
           });
-        })
-      )
-      .subscribe(results => {
-        this.zone.run(() => {
-          const isSuccess = (r: unknown): r is { ok: true; book: Book; candidate: GoogleBookCandidate } => 
-            typeof r === 'object' && r !== null && 'ok' in r &&  (r as any).ok === true;
-          
-          const successBooks = results.filter(isSuccess).map(r => r.book);
-          const failed = results.filter(r => !isSuccess(r));
-
-          if (successBooks.length > 0) {
-            this.books = [...successBooks, ...this.books];
-          }
-
-          const totalFailed = failed.length + invalidCandidates.length;
-
-          // UX: close modal whenever at least one book was created.
-          if (successBooks.length > 0) {
-            this.closeModal();
-            return;
-          }
-
-          this.googleError = `${successBooks.length} livro(s) cadastrado(s). ${totalFailed} nao cadastrado(s).`;
-
-          const failedIds = new Set<string>([
-            ...failed.map(r => r.candidate.googleId),
-            ...invalidCandidates.map(c => c.googleId),
-          ]);
-
-          this.selectedGoogleIds.forEach(id => {
-            if (!failedIds.has(id)) {
-              this.selectedGoogleIds.delete(id);
-            }
+        },
+        error: () => {
+          this.zone.run(() => {
+            this.searchLoading = false;
+            this.cdr.detectChanges();
           });
-        });
+        },
       });
   }
 
-  onCompleteFilterToggle(): void {
-    if (!this.showOnlyCompleteCandidates) return;
-
-    this.selectedGoogleIds.forEach(id => {
-      const candidate = this.googleResults.find(item => item.googleId === id);
-      if (candidate && !this.isCandidateBulkValid(candidate)) {
-        this.selectedGoogleIds.delete(id);
-      }
-    });
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  isCandidateBulkValid(candidate: GoogleBookCandidate): boolean {
-    return Boolean(candidate.name?.trim() && candidate.writer?.trim() && candidate.isbn?.trim() && candidate.publishingCompany?.trim());
+  onSearchInput(value: string): void {
+    this.searchQuery = value;
+    this.searchQuery$.next(value);
   }
 
-  private fetchGooglePage(reset: boolean): void {
-    const query = this.googleQuery.trim();
-    if (query.length < 3) return;
+  onSearchScroll(event: Event): void {
+    // Apenas scroll infinito se estamos em resultados de API
+    if (this.currentSearchSource !== 'api') return;
+    if (this.searchLoading || this.loadingMore || !this.apiHasMore) return;
 
-    if (reset) {
-      this.googleLoading = true;
-      this.googleLoadingMore = false;
-      this.googleStartIndex = 0;
-      this.googleHasMore = true;
-      this.selectedGoogleIds.clear();
-    } else {
-      this.googleLoadingMore = true;
+    const target = event.target as HTMLElement;
+    const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 100;
+
+    if (nearBottom && this.searchQuery.trim()) {
+      this.loadMoreResults();
+    }
+  }
+
+  private loadMoreResults(): void {
+    const query = this.searchQuery.trim();
+    if (!query) return;
+
+    this.loadingMore = true;
+    this.integratedSearch
+      .searchApisDirectly(query, this.apiStartIndex, this.pageSize)
+      .pipe(
+        timeout(10000),
+        catchError(() => {
+          this.zone.run(() => {
+            this.searchError = 'Erro ao carregar mais resultados.';
+          });
+          return of<BookSearchResult[]>([]);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (results) => {
+          this.zone.run(() => {
+            const existingIds = new Set(this.searchResults.map((r) => this.getBookId(r.book)));
+            const newResults = results.filter((r) => !existingIds.has(this.getBookId(r.book)));
+
+            this.searchResults = [...this.searchResults, ...newResults];
+            this.apiStartIndex += results.length;
+            this.apiHasMore = results.length === this.pageSize;
+            this.loadingMore = false;
+            this.cdr.detectChanges();
+          });
+        },
+      });
+  }
+
+  getBookId(book: any): string {
+    return book.id || book.googleId;
+  }
+  
+  isPendingBookResult(book: Book): boolean {
+    return this.pendingBookActionId === this.getBookId(book);
+  }
+  
+  getResultActionLabel(result: BookSearchResult): string {
+    if (this.isPendingBookResult(result.book)) {
+      return result.source === 'local' ? 'Abrindo...' : 'Adicionando...';
+    }
+  
+    return result.source === 'local' ? 'Abrir detalhes' : '+ Adicionar';
+  }
+
+  private sanitizeIsbn(value: string): string {
+    return value
+      .split('')
+      .filter((character) => /[0-9X]/.test(character))
+      .join('');
+  }
+
+  private resolveImportIsbn(apiBook: any): string {
+    const rawIsbn = String(apiBook?.isbn ?? '')
+      .toUpperCase()
+      .split('')
+      .filter((character) => /[0-9X]/.test(character))
+      .join('');
+
+    if (rawIsbn.length >= 10 && rawIsbn.length <= 20) {
+      return rawIsbn;
     }
 
-    const startIndex = reset ? 0 : this.googleStartIndex;
+    const sourceId = String(this.getBookId(apiBook) || `${apiBook?.name || 'BOOK'}-${apiBook?.writer || 'AUTHOR'}`)
+      .toUpperCase()
+      .split('')
+      .filter((character) => /[A-Z0-9]/.test(character))
+      .join('');
 
-    this.googleBooks.search(query, startIndex, this.googlePageSize).pipe(
-      timeout(10000),
-      catchError(() => {
-        this.zone.run(() => {
-          this.googleError = 'Erro ao buscar livros. Pode haver problemas com a conexão.';
-        });
-        return of<GoogleBookCandidate[]>([]);
-      })
-    ).subscribe({
-      next: results => {
-        this.zone.run(() => {
-          if (reset) {
-            this.googleResults = results;
-          } else {
-            const existingIds = new Set(this.googleResults.map(item => item.googleId));
-            const newResults = results.filter(item => !existingIds.has(item.googleId));
-            this.googleResults = [...this.googleResults, ...newResults];
+    return (`EXT${sourceId}`).padEnd(10, '0').slice(0, 20);
+  }
+
+  selectBook(result: BookSearchResult): void {
+    if (this.pendingBookActionId) {
+      return;
+    }
+
+    if (result.source === 'local') {
+      this.router.navigate(['/livros', result.book.id]);
+      return;
+    }
+
+    this.autoAddBook(result);
+  }
+
+  private autoAddBook(result: BookSearchResult): void {
+    const apiBook = result.book;
+    this.pendingBookActionId = this.getBookId(apiBook);
+    this.searchError = '';
+
+    const payload: CreateBookFromSearchInput = {
+      name: (apiBook.name || 'Titulo nao informado').trim(),
+      writer: (apiBook.writer || 'Autor desconhecido').trim(),
+      genre: apiBook.genre?.trim() || 'Não informado',
+      nPages: apiBook.nPages > 0 ? apiBook.nPages : 1,
+      yearPublication: apiBook.yearPublication > 0 ? apiBook.yearPublication : new Date().getFullYear(),
+      isbn: this.resolveImportIsbn(apiBook),
+      publishingCompany: (apiBook.publishingCompany || 'Editora desconhecida').trim(),
+      img: apiBook.img || undefined,
+      synopsis: apiBook.synopsis || undefined,
+      series: result.series
+        ? {
+            name: result.series.name,
+            universeName: result.series.universeName,
+            positionInSeries: result.series.positionInSeries,
+            positionLabel: result.series.positionLabel,
+            metadataSource: result.series.metadataSource,
+            metadataConfidence: result.series.metadataConfidence,
           }
-
-          this.googleStartIndex = startIndex + results.length;
-          this.googleHasMore = results.length === this.googlePageSize;
-
-          if (reset && results.length === 0) {
-            this.googleError = 'Nenhum resultado encontrado. Tente outro termo.';
-          }
-
-          this.googleLoading = false;
-          this.googleLoadingMore = false;
-          this.cdr.detectChanges();
-        });
-      },
-      error: (err: HttpErrorResponse) => {
-        this.zone.run(() => {
-          console.error('Google Books error:', err);
-          this.googleLoading = false;
-          this.googleLoadingMore = false;
-          const apiMessage = err?.error?.error?.message;
-          this.googleError = apiMessage
-            ? `Google Books: ${apiMessage}`
-            : 'Erro ao buscar no Google Books. Verifique a conexão.';
-          this.cdr.detectChanges();
-        });
-      },
-    });
-  }
-
-  isAlreadyRegistered(candidate: GoogleBookCandidate): boolean {
-    const isbn = this.normalizeIsbn(candidate.isbn);
-    if (!isbn) return false;
-    return this.existingIsbnSet.has(isbn);
-  }
-
-  private normalizeIsbn(isbn: string | undefined): string {
-    if (!isbn) return '';
-    return isbn.toUpperCase().replace(/[^0-9X]/g, '');
-  }
-
-  fillManually(): void {
-    this.formMode = 'create';
-    this.editingBookId = null;
-    this.resetForm();
-    this.coverPreviewUrl = '';
-    this.modalStep = 'form';
-  }
-
-  openEditModal(book: Book, event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    this.showModal = true;
-    this.modalStep = 'form';
-    this.formMode = 'edit';
-    this.editingBookId = book.id;
-    this.googleError = '';
-    this.saveError = '';
-    this.coverUploadError = '';
-    this.selectedCoverName = '';
-    this.coverUploadBusy = false;
-
-    this.form = {
-      name: book.name,
-      writer: book.writer,
-      genre: book.genre,
-      nPages: book.nPages,
-      yearPublication: book.yearPublication,
-      isbn: book.isbn,
-      publishingCompany: book.publishingCompany,
-      img: book.img ?? '',
-      synopsis: book.synopsis ?? '',
+        : undefined,
     };
 
-    this.coverPreviewUrl = this.form.img || '';
+    this.apiService
+      .createBookFromSearch(payload)
+      .pipe(
+        timeout(10000),
+        catchError((err: HttpErrorResponse) => {
+          if (err.status === 409) {
+            return this.apiService.getBooks().pipe(
+              takeUntil(this.destroy$),
+              catchError(() => of([] as Book[]))
+            );
+          }
+
+          this.zone.run(() => {
+            if (err.status === 401) {
+              this.searchError = 'Faça login para adicionar livros ao acervo.';
+            } else {
+              this.searchError = err?.error?.message || 'Erro ao adicionar livro ao acervo.';
+            }
+            this.pendingBookActionId = null;
+            this.cdr.detectChanges();
+          });
+
+          return of(null);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (result) => {
+          this.zone.run(() => {
+            const createdBook = Array.isArray(result)
+              ? this.findMatchingBook(result, payload)
+              : result;
+
+            if (createdBook) {
+              const resultIndex = this.searchResults.findIndex(
+                (r) => this.getBookId(r.book) === this.getBookId(apiBook)
+              );
+              if (resultIndex >= 0) {
+                this.searchResults[resultIndex] = {
+                  source: 'local',
+                  book: createdBook,
+                  alreadyExists: true,
+                };
+              }
+
+              this.pendingBookActionId = null;
+              this.cdr.detectChanges();
+              this.router.navigate(['/livros', createdBook.id]);
+              return;
+            }
+
+            this.pendingBookActionId = null;
+            this.cdr.detectChanges();
+          });
+        },
+      });
   }
 
-  backToSearch(): void {
-    this.modalStep = 'search';
+  getSeriesHint(result: BookSearchResult): string {
+    if (!result.series?.name) {
+      return '';
+    }
+
+    const position = result.series.positionLabel ||
+      (typeof result.series.positionInSeries === 'number' ? `Vol. ${result.series.positionInSeries}` : '');
+
+    return position ? `${result.series.name} - ${position}` : result.series.name;
+  }
+
+  private findMatchingBook(books: Book[], payload: Omit<Book, 'id'>): Book | null {
+    const normalizedIsbn = this.sanitizeIsbn(payload.isbn.toUpperCase());
+
+    return books.find((book) => {
+      const bookIsbn = this.sanitizeIsbn(String(book.isbn || '').toUpperCase());
+      if (normalizedIsbn && bookIsbn === normalizedIsbn) {
+        return true;
+      }
+
+      return (
+        book.name.trim().toLowerCase() === payload.name.trim().toLowerCase() &&
+        book.writer.trim().toLowerCase() === payload.writer.trim().toLowerCase()
+      );
+    }) || null;
+  }
+
+  openCreateModal(): void {
+    if (!this.isAdmin) return;
+    this.showCreateModal = true;
+    this.resetForm();
     this.saveError = '';
+  }
+
+  closeCreateModal(): void {
+    this.showCreateModal = false;
   }
 
   submitBook(): void {
@@ -459,6 +356,7 @@ export class BookListComponent implements OnInit {
       this.saveError = 'Preencha todos os campos obrigatórios.';
       return;
     }
+
     this.saving = true;
     this.saveError = '';
 
@@ -470,43 +368,31 @@ export class BookListComponent implements OnInit {
       synopsis: this.form.synopsis || undefined,
     };
 
-    const request$ = this.formMode === 'edit' && this.editingBookId
-      ? this.apiService.updateBook(this.editingBookId, payload)
-      : this.apiService.createBook(payload);
-
-    request$.pipe(
-      timeout(10000),
-      catchError((err: HttpErrorResponse) => {
-        this.zone.run(() => {
-          this.saving = false;
-          this.saveError = err?.error?.message || 'Erro ao cadastrar o livro. Tente novamente.';
-          this.cdr.detectChanges();
-        });
-        return of(null);
-      }),
-      finalize(() => {
-        if (this.saving) {
+    this.apiService
+      .createBook(payload)
+      .pipe(
+        timeout(10000),
+        catchError((err: HttpErrorResponse) => {
           this.zone.run(() => {
+            this.saving = false;
+            this.saveError = err?.error?.message || 'Erro ao cadastrar o livro.';
+            this.cdr.detectChanges();
+          });
+          return of(null);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (createdBook) => {
+          this.zone.run(() => {
+            if (createdBook) {
+              this.closeCreateModal();
+            }
             this.saving = false;
             this.cdr.detectChanges();
           });
-        }
-      })
-    ).subscribe({
-      next: newBook => {
-        this.zone.run(() => {
-          if (newBook) {
-            if (this.formMode === 'edit' && this.editingBookId) {
-              this.books = this.books.map(book => (book.id === this.editingBookId ? newBook : book));
-            } else {
-              this.books = [newBook, ...this.books];
-            }
-            this.closeModal();
-          }
-          this.cdr.detectChanges();
-        });
-      },
-    });
+        },
+      });
   }
 
   onCoverUrlChange(value: string): void {
@@ -517,19 +403,17 @@ export class BookListComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
     if (!allowedTypes.has(file.type)) {
-      this.coverUploadError = 'Formato nao suportado. Use JPG, PNG, WEBP ou AVIF.';
+      this.coverUploadError = 'Formato não suportado. Use JPG, PNG, WEBP ou AVIF.';
       input.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      this.coverUploadError = 'A capa deve ter no maximo 5MB.';
+      this.coverUploadError = 'A capa deve ter no máximo 5MB.';
       input.value = '';
       return;
     }
@@ -548,16 +432,15 @@ export class BookListComponent implements OnInit {
         catchError((err: HttpErrorResponse) => {
           this.zone.run(() => {
             this.coverUploadBusy = false;
-            this.coverUploadError = err?.error?.message || 'Nao foi possivel enviar a capa agora.';
+            this.coverUploadError = err?.error?.message || 'Não foi possível enviar a capa agora.';
             this.cdr.detectChanges();
           });
           return of(null);
-        })
+        }),
+        takeUntil(this.destroy$)
       )
       .subscribe((signed) => {
-        if (!signed) {
-          return;
-        }
+        if (!signed) return;
 
         this.apiService
           .uploadFileToSignedUrl(signed.uploadUrl, file)
@@ -566,28 +449,25 @@ export class BookListComponent implements OnInit {
             catchError((err: HttpErrorResponse) => {
               this.zone.run(() => {
                 this.coverUploadBusy = false;
-                this.coverUploadError = err?.error?.message || 'Falha ao enviar arquivo para o storage.';
+                this.coverUploadError = err?.error?.message || 'Falha ao enviar arquivo.';
                 this.cdr.detectChanges();
               });
               return of(null);
             }),
             finalize(() => {
               this.zone.run(() => {
-                if (this.coverUploadBusy) {
-                  this.coverUploadBusy = false;
-                  this.cdr.detectChanges();
-                }
+                this.coverUploadBusy = false;
+                this.cdr.detectChanges();
               });
-            })
+            }),
+            takeUntil(this.destroy$)
           )
           .subscribe((uploaded) => {
             this.zone.run(() => {
-              if (uploaded === null) {
-                return;
+              if (uploaded !== null) {
+                this.form.img = signed.publicUrl;
+                this.coverPreviewUrl = signed.publicUrl;
               }
-
-              this.form.img = signed.publicUrl;
-              this.coverPreviewUrl = signed.publicUrl;
               this.cdr.detectChanges();
             });
           });
@@ -596,16 +476,20 @@ export class BookListComponent implements OnInit {
 
   private resetForm(): void {
     this.form = {
-      name: '', writer: '', genre: '', nPages: 0,
+      name: '',
+      writer: '',
+      genre: '',
+      nPages: 0,
       yearPublication: new Date().getFullYear(),
-      isbn: '', publishingCompany: '', img: '', synopsis: '',
+      isbn: '',
+      publishingCompany: '',
+      img: '',
+      synopsis: '',
     };
     this.coverPreviewUrl = '';
     this.coverUploadBusy = false;
     this.coverUploadError = '';
     this.selectedCoverName = '';
-    this.formMode = 'create';
-    this.editingBookId = null;
   }
 }
 

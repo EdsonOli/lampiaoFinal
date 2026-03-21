@@ -1,0 +1,47 @@
+---
+# Lampiao Services: ClusterIP for internal communication
+
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: lampiao-prod
+  labels:
+    app: lampiao
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: lampiao
+    component: backend
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+      protocol: TCP
+
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: lampiao-prod
+  labels:
+    app: lampiao
+    component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: lampiao
+    component: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+
+---
+# Database Service (already defined in k8s-database-deployment.yaml)
+# Can reference: postgres.lampiao-prod.svc.cluster.local:5432

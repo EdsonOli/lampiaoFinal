@@ -1,0 +1,50 @@
+<app-navbar />
+
+<main class="series-hub-page">
+  <section class="series-hero">
+    <div class="series-copy">
+      <p class="eyebrow">Universos do Lampião</p>
+      <h1>Sagas e séries literárias</h1>
+      <p class="subtitle">
+        Explore as sagas do acervo, descubra a ordem dos livros e entre nas conversas que se formam em torno de cada universo.
+      </p>
+      <div class="hero-actions">
+        <span class="hero-chip">Sagas do acervo</span>
+        <span class="hero-chip hero-chip-secondary">Universos literários</span>
+      </div>
+    </div>
+    <img src="/img/lampiaozinho.png" alt="Mascote Lampião" class="hero-icon" />
+  </section>
+
+  @if (loading) {
+    <app-status-card kicker="Reunindo as sagas" message="Carregando séries do acervo..." />
+  } @else if (error) {
+    <app-status-card variant="error" kicker="Algo saiu do rumo" [message]="error" />
+  } @else if (series.length === 0) {
+    <app-status-card variant="empty" kicker="Nenhuma série por enquanto" message="As séries aparecem aqui quando livros de uma mesma saga são adicionados ao acervo.">
+      <a routerLink="/livros" class="status-link">Explore o acervo</a>
+    </app-status-card>
+  } @else {
+    <div class="shelf-head">
+      <div class="feed-label">Todas as séries</div>
+      <div class="feed-count">{{ series.length }} série{{ series.length === 1 ? '' : 's' }}</div>
+    </div>
+
+    <div class="series-grid">
+      @for (s of series; track s.id) {
+        <a class="series-card" [routerLink]="['/series', s.id]" [attr.aria-label]="'Abrir saga ' + s.name">
+          <div class="series-card-body">
+            <h2 class="series-name">{{ s.name }}</h2>
+            @if (s.universeName) {
+              <p class="series-universe">{{ s.universeName }}</p>
+            }
+          </div>
+          <footer class="series-card-footer">
+            <span class="series-book-count">{{ s.bookCount }} livro{{ s.bookCount === 1 ? '' : 's' }}</span>
+            <span class="series-cta">Explorar →</span>
+          </footer>
+        </a>
+      }
+    </div>
+  }
+</main>

@@ -1,8 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { PLATFORM_ID } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { mapGoogleAuthError } from '../../core/utils/map-google-auth-error';
 import { environment } from '../../../environments/environment';
@@ -28,10 +27,10 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
   styleUrl: './register.component.css',
 })
 export class RegisterComponent {
-  private fb = inject(FormBuilder);
-  private authService = inject(AuthService);
-  private router = inject(Router);
-  private platformId = inject(PLATFORM_ID);
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly platformId = inject(PLATFORM_ID);
 
   form = this.fb.group(
     {
@@ -86,7 +85,7 @@ export class RegisterComponent {
     const { name, email, nickname, password, confirmPassword } = this.form.value;
 
     this.authService.register(name!, email!, nickname!, password!, confirmPassword!).subscribe({
-      next: () => this.router.navigate(['/login']),
+      next: () => { void this.router.navigate(['/login'], { queryParams: { registered: '1' } }); },
       error: (err) => {
         this.errorMessage = err.error?.message ?? 'Erro ao criar conta.';
         this.loading = false;
@@ -101,7 +100,7 @@ export class RegisterComponent {
     this.requestGoogleIdToken()
       .then((idToken) => {
         this.authService.googleAuth(idToken).subscribe({
-          next: () => this.router.navigate(['/timeline']),
+          next: () => { void this.router.navigate(['/timeline']); },
           error: (err) => {
             this.errorMessage = mapGoogleAuthError(err);
             this.googleLoading = false;
@@ -125,7 +124,7 @@ export class RegisterComponent {
       }
 
       const clientId = environment.googleClientId?.trim();
-      const googleApi = (window as any).google;
+      const googleApi = (globalThis as any).google;
 
       if (!clientId || !googleApi?.accounts?.id) {
         reject(new Error('Google Sign-In nao configurado. Defina googleClientId no environment.'));

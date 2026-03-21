@@ -1,0 +1,55 @@
+# Multi-stage Dockerfile for Lampiao Frontend (Angular 21 + SSR)
+# Build stage: Compile Angular application
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY frontend/package*.json ./
+RUN npm ci
+
+# Copy source code
+COPY frontend/public ./public
+COPY frontend/src ./src
+COPY frontend/angular.json .
+COPY frontend/tsconfig*.json ./
+
+# Build Angular application with SSR
+RUN npm run build
+
+# Runtime stage: Minimal image with production code only
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S web -u 1001
+
+# Install production dependencies for SSR
+COPY frontend/package*.json ./
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy built Angular application and SSR server
+COPY --from=builder /app/dist ./dist
+
+# Change ownership to non-root user
+RUN chown -R web:nodejs /app
+
+# Switch to non-root user
+USER web
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Expose port (4000 for SSR server, 4200 for dev)
+EXPOSE 4000
+
+# Set environment
+ENV NODE_ENV=production \
+    PORT=4000
+
+# Start SSR server
+CMD ["npm", "run", "serve:ssr:frontend"]

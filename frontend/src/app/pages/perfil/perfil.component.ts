@@ -1,14 +1,14 @@
-import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, NgZone, OnInit, PLATFORM_ID, ViewChild, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { PLATFORM_ID } from '@angular/core';
 import { catchError, finalize, of, switchMap, timeout } from 'rxjs';
 import { ApiService, Book, Notebook, UserProfile } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { mapGoogleAuthError } from '../../core/utils/map-google-auth-error';
 import { environment } from '../../../environments/environment';
 import { NavbarComponent } from '../../shared/navbar/navbar.component';
+import { StatusCardComponent } from '../../shared/status-card/status-card.component';
 
 interface ShelfItem {
   book: Book;
@@ -18,18 +18,20 @@ interface ShelfItem {
 @Component({
   selector: 'app-perfil',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, NavbarComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, NavbarComponent, StatusCardComponent],
   templateUrl: './perfil.component.html',
   styleUrl: './perfil.component.css',
 })
 export class PerfilComponent implements OnInit {
-  private apiService = inject(ApiService);
-  private authService = inject(AuthService);
-  private fb = inject(FormBuilder);
-  private router = inject(Router);
-  private cdr = inject(ChangeDetectorRef);
-  private zone = inject(NgZone);
-  private platformId = inject(PLATFORM_ID);
+  @ViewChild('editModalFirstInput') editModalFirstInput?: ElementRef<HTMLInputElement>;
+
+  private readonly apiService = inject(ApiService);
+  private readonly authService = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
+  private readonly platformId = inject(PLATFORM_ID);
 
   user: UserProfile | null = null;
   notebooks: Notebook[] = [];
@@ -83,7 +85,9 @@ export class PerfilComponent implements OnInit {
     this.editMode = !this.editMode;
     this.successMessage = '';
     this.formError = '';
-    if (!this.editMode && this.user) {
+    if (this.editMode) {
+      setTimeout(() => this.editModalFirstInput?.nativeElement.focus(), 50);
+    } else if (this.user) {
       this.form.patchValue({
         name: this.user.name,
         nickname: this.user.nickname,
@@ -331,7 +335,7 @@ export class PerfilComponent implements OnInit {
       }
 
       const clientId = environment.googleClientId?.trim();
-      const googleApi = (window as any).google;
+      const googleApi = (globalThis as any).google;
 
       if (!clientId || !googleApi?.accounts?.id) {
         reject(new Error('Google Sign-In nao configurado. Defina googleClientId no environment.'));

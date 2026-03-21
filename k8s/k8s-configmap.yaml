@@ -1,0 +1,23 @@
+---
+# ConfigMap: Non-sensitive application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lampiao-config
+  namespace: lampiao-prod
+data:
+  db.host: "postgres.lampiao-prod.svc.cluster.local"
+  db.port: "5432"
+  db.user: "lampiao"
+  db.name: "lampiao_db"
+  api.url: "https://api.lampiao.com"
+  frontend.url: "https://lampiao.com"
+  log.level: "info"
+  cors.origin: "https://lampiao.com"
+  rate.limit.window: "15m"
+  rate.limit.max.requests: "100"
+  session.timeout: "24h"
+  features.google.auth: "true"
+  features.book.series: "true"
+  features.post.drafts: "true"
+  features.comments.threading: "true"

@@ -1,0 +1,13 @@
+<div
+  class="status-card"
+  [class.status-card-error]="variant === 'error'"
+  [class.status-card-empty]="variant === 'empty'"
+>
+  @if (kicker) {
+    <p class="status-kicker">{{ kicker }}</p>
+  }
+  @if (message) {
+    <p class="status" [class.error]="variant === 'error'">{{ message }}</p>
+  }
+  <ng-content />
+</div>

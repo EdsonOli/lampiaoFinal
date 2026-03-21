@@ -47,6 +47,19 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'series',
+    loadComponent: () =>
+      import('./pages/series-list/series-list.component').then((m) => m.SeriesListComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'series/:seriesId',
+    data: { prerender: false },
+    loadComponent: () =>
+      import('./pages/series-detail/series-detail.component').then((m) => m.SeriesDetailComponent),
+    canActivate: [authGuard],
+  },
+  {
     path: 'perfil',
     loadComponent: () =>
       import('./pages/perfil/perfil.component').then((m) => m.PerfilComponent),

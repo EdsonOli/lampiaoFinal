@@ -3,11 +3,12 @@ import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME, getAuthCookieOptions } from '../
 import { JwtTokenService } from '../services/JwtTokenService';
 import { Container } from '../container';
 import { tokenBlacklistService } from '../services/TokenBlacklistService';
+import { unauthorized } from '../http/respondError';
 
 const tokenService = new JwtTokenService();
 const refreshTokenService = new JwtTokenService({
   secret: process.env.JWT_REFRESH_SECRET || `${process.env.JWT_SECRET || 'lampiao-dev-secret'}:refresh`,
-  expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as string,
+  expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
 });
 const { getUserById } = Container.useCases;
 
@@ -85,7 +86,7 @@ export async function authenticate(
   const hasCredentials = Boolean(req.headers.authorization) || typeof req.cookies?.[AUTH_COOKIE_NAME] === 'string';
 
   if (!hasCredentials) {
-    res.status(401).json({ message: 'Missing bearer token' });
+    unauthorized(res, 'Nenhuma credencial de autenticacao foi enviada.', 'AUTH_TOKEN_MISSING');
     return;
   }
 
@@ -93,14 +94,14 @@ export async function authenticate(
     const auth = await resolveAuth(req, res);
 
     if (!auth) {
-      res.status(401).json({ message: 'User not found' });
+      unauthorized(res, 'Nao foi possivel validar a sessao informada.', 'AUTH_SESSION_INVALID');
       return;
     }
 
     req.auth = auth;
     next();
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid token' });
+  } catch {
+    unauthorized(res, 'O token de autenticacao informado e invalido ou expirou.', 'AUTH_TOKEN_INVALID');
   }
 }
 

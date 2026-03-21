@@ -15,11 +15,54 @@ const optionalTrimmedString = (min = 1, max = 255) =>
     z.string().min(min).max(max).optional()
   );
 
+const optionalTrimmedStringAllowEmpty = (max = 255) =>
+  z.preprocess(
+    value => (typeof value === 'string' ? value.trim() : value),
+    z.string().max(max).optional()
+  );
+
 const requiredTrimmedString = (min = 1, max = 255) =>
   z.preprocess(
     value => (typeof value === 'string' ? value.trim() : value),
     z.string().min(min).max(max)
   );
+
+const MAX_STORY_WORDS = 40000;
+const MAX_STORY_TEXT_CHARS = 260000;
+const STORY_TEXT_REQUIRED_MESSAGE = 'Texto da publicacao e obrigatorio';
+const STORY_TEXT_EMPTY_MESSAGE = 'Texto da publicacao nao pode ficar vazio';
+const STORY_TEXT_MAX_CHARS_MESSAGE = `Texto da publicacao deve ter no maximo ${MAX_STORY_TEXT_CHARS} caracteres`;
+const STORY_TEXT_MAX_WORDS_MESSAGE = `Texto da publicacao deve ter no maximo ${MAX_STORY_WORDS.toLocaleString('pt-BR')} palavras`;
+
+const countWords = (value: string): number =>
+  value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+
+const requiredStoryTextSchema = z.preprocess(
+  value => (typeof value === 'string' ? value.trim() : value),
+  z
+    .string({ required_error: STORY_TEXT_REQUIRED_MESSAGE })
+    .min(1, STORY_TEXT_EMPTY_MESSAGE)
+    .max(MAX_STORY_TEXT_CHARS, STORY_TEXT_MAX_CHARS_MESSAGE)
+    .refine(text => countWords(text) <= MAX_STORY_WORDS, {
+      message: STORY_TEXT_MAX_WORDS_MESSAGE,
+    })
+);
+
+const optionalStoryTextSchema = z.preprocess(
+  value => (typeof value === 'string' ? value.trim() : value),
+  z
+    .string()
+    .min(1, STORY_TEXT_EMPTY_MESSAGE)
+    .max(MAX_STORY_TEXT_CHARS, STORY_TEXT_MAX_CHARS_MESSAGE)
+    .refine(text => countWords(text) <= MAX_STORY_WORDS, {
+      message: STORY_TEXT_MAX_WORDS_MESSAGE,
+    })
+    .optional()
+);
 
 export const registerSchema = z.object({
   name: requiredTrimmedString(2, 120),
@@ -93,23 +136,46 @@ export const updateBookSchema = z.object({
 
 export const createPostSchema = z.object({
   title: requiredTrimmedString(1, 160),
-  text: requiredTrimmedString(1, 5000),
+  text: requiredStoryTextSchema,
   bookId: z.string().uuid(),
   isItPublic: z.boolean().optional(),
 });
 
 export const updatePostSchema = z.object({
   title: optionalTrimmedString(1, 160),
-  text: optionalTrimmedString(1, 5000),
+  text: optionalStoryTextSchema,
   isItPublic: z.boolean().optional(),
 }).refine(payload => payload.title !== undefined || payload.text !== undefined || payload.isItPublic !== undefined, {
   message: 'At least one field must be provided',
+});
+
+export const getPostDraftQuerySchema = z.object({
+  deviceId: requiredTrimmedString(3, 120),
+});
+
+export const savePostDraftSchema = z.object({
+  deviceId: requiredTrimmedString(3, 120),
+  title: optionalTrimmedStringAllowEmpty(160),
+  isItPublic: z.boolean().optional(),
+  text: z.preprocess(
+    value => (typeof value === 'string' ? value.trim() : value),
+    z
+      .string()
+      .max(MAX_STORY_TEXT_CHARS, STORY_TEXT_MAX_CHARS_MESSAGE)
+      .refine(text => countWords(text) <= MAX_STORY_WORDS, {
+        message: STORY_TEXT_MAX_WORDS_MESSAGE,
+      })
+      .optional()
+  ),
+}).refine(payload => payload.title !== undefined || payload.text !== undefined || payload.isItPublic !== undefined, {
+  message: 'Informe titulo, texto ou visibilidade para salvar o rascunho',
 });
 
 export const createCommentSchema = z.object({
   title: requiredTrimmedString(1, 160),
   text: requiredTrimmedString(1, 3000),
   postId: z.string().uuid(),
+  parentCommentId: z.string().uuid().optional(),
 });
 
 export const updateCommentSchema = z.object({
@@ -117,6 +183,10 @@ export const updateCommentSchema = z.object({
   text: optionalTrimmedString(1, 3000),
 }).refine(payload => payload.title !== undefined || payload.text !== undefined, {
   message: 'At least one field must be provided',
+});
+
+export const voteCommentRelevanceSchema = z.object({
+  value: z.enum(['relevant', 'less_relevant']),
 });
 
 const notebookStatusSchema = z.enum(['Lido', 'Lendo', 'Quero ler']);

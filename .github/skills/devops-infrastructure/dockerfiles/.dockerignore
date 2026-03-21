@@ -1,0 +1,73 @@
+# Docker Build Context: files and paths to exclude from image layers
+# Reduces build context size and improves layer caching
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node modules (will be installed in container)
+node_modules
+npm-debug.log
+yarn-error.log
+.npm
+
+# Dependency lock files (handled separately)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Development and build artifacts
+dist
+build
+*.tsbuildinfo
+.next
+.nuxt
+coverage
+.nyc_output
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+.eslintcache
+
+# Environment files (shouldn't be in images)
+.env
+.env.local
+.env.*.local
+
+# Docker and deployment
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+.github
+
+# Documentation (optional, include if needed)
+# README.md
+# docs/
+
+# Logs
+logs
+*.log
+
+# Testing
+.jest
+.mocha
+jest.config.js
+karma.conf.js
+cypress
+e2e
+__tests__
+
+# Temporary files
+tmp
+temp
+.tmp

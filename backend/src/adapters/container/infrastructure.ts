@@ -8,9 +8,13 @@ import { SequelizePostRepository } from '../repositories/SequelizePostRepository
 import { SequelizeCommentRepository } from '../repositories/SequelizeCommentRepository';
 import { SequelizeNotebookRepository } from '../repositories/SequelizeNotebookRepository';
 import { SequelizeBookRepository } from '../repositories/SequelizeBookRepository';
+import { SequelizeBookSeriesRepository } from '../repositories/SequelizeBookSeriesRepository';
+import { SequelizePostDraftRepository } from '../repositories/SequelizePostDraftRepository';
 import { BcryptPasswordHasher } from '../services/BcryptPasswordHasher';
+import { GoogleBooksSearchProvider } from '../services/GoogleBooksSearchProvider';
 import { GoogleIdTokenVerifierService } from '../services/GoogleIdTokenVerifierService';
 import { JwtTokenService } from '../services/JwtTokenService';
+import { OpenLibrarySearchProvider } from '../services/OpenLibrarySearchProvider';
 import { SupabaseImageStorageService } from '../services/SupabaseImageStorageService';
 
 // Repositories
@@ -19,12 +23,16 @@ const postRepository = new SequelizePostRepository();
 const commentRepository = new SequelizeCommentRepository();
 const notebookRepository = new SequelizeNotebookRepository();
 const bookRepository = new SequelizeBookRepository();
+const bookSeriesRepository = new SequelizeBookSeriesRepository();
+const postDraftRepository = new SequelizePostDraftRepository();
 
 // Services
 const passwordHasher = new BcryptPasswordHasher();
 const tokenService = new JwtTokenService();
 const googleIdTokenVerifier = new GoogleIdTokenVerifierService();
 const imageStorage = new SupabaseImageStorageService();
+const googleBooksSearchProvider = new GoogleBooksSearchProvider();
+const openLibrarySearchProvider = new OpenLibrarySearchProvider();
 
 export const infrastructure = {
   repositories: {
@@ -33,11 +41,14 @@ export const infrastructure = {
     comment: commentRepository,
     notebook: notebookRepository,
     book: bookRepository,
+    bookSeries: bookSeriesRepository,
+    postDraft: postDraftRepository,
   },
   services: {
     passwordHasher,
     tokenService,
     googleIdTokenVerifier,
     imageStorage,
+    externalBookSearchProviders: [googleBooksSearchProvider, openLibrarySearchProvider],
   },
 };

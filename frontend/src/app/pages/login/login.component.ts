@@ -1,10 +1,13 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, DestroyRef } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { PLATFORM_ID } from '@angular/core';
+import { interval, Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/services/auth.service';
 import { mapGoogleAuthError } from '../../core/utils/map-google-auth-error';
+import { normalizeApiErrorPayload, ApiErrorPayload } from '../../core/utils/api-error';
+import { getUserFacingMessage, FRONTEND_ERROR_CATALOG } from '../../core/utils/error-catalog';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -14,11 +17,13 @@ import { environment } from '../../../environments/environment';
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
-export class LoginComponent {
-  private fb = inject(FormBuilder);
-  private authService = inject(AuthService);
-  private router = inject(Router);
-  private platformId = inject(PLATFORM_ID);
+export class LoginComponent implements OnInit, OnDestroy {
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly destroyRef = inject(DestroyRef);
 
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -26,21 +31,39 @@ export class LoginComponent {
   });
 
   errorMessage = '';
+  errorCode: string | undefined;
+  successMessage = '';
   loading = false;
   googleLoading = false;
+  retryAfterSeconds: number | undefined;
+  private retryCountdown$: Subscription | undefined;
+
+  ngOnInit(): void {
+    if (this.route.snapshot.queryParamMap.get('registered') === '1') {
+      this.successMessage = 'Conta criada com sucesso! Faça login para entrar na comunidade.';
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.retryCountdown$?.unsubscribe();
+  }
 
   onSubmit(): void {
     if (this.form.invalid) return;
 
     this.loading = true;
     this.errorMessage = '';
+    this.errorCode = undefined;
+    this.retryAfterSeconds = undefined;
 
     const { email, password } = this.form.value;
 
     this.authService.login(email!, password!).subscribe({
-      next: () => this.router.navigate(['/timeline']),
+      next: () => {
+        void this.router.navigate(['/timeline']);
+      },
       error: (err) => {
-        this.errorMessage = err.error?.message ?? 'Erro ao fazer login.';
+        this.handleLoginError(err);
         this.loading = false;
       },
     });
@@ -49,13 +72,17 @@ export class LoginComponent {
   onGoogleLogin(): void {
     this.googleLoading = true;
     this.errorMessage = '';
+    this.errorCode = undefined;
+    this.retryAfterSeconds = undefined;
 
     this.requestGoogleIdToken()
       .then((idToken) => {
         this.authService.googleAuth(idToken).subscribe({
-          next: () => this.router.navigate(['/timeline']),
+          next: () => {
+            void this.router.navigate(['/timeline']);
+          },
           error: (err) => {
-            this.errorMessage = mapGoogleAuthError(err);
+            this.handleGoogleAuthError(err);
             this.googleLoading = false;
           },
           complete: () => {
@@ -64,8 +91,57 @@ export class LoginComponent {
         });
       })
       .catch((error) => {
-        this.errorMessage = error?.message ?? 'Nao foi possivel iniciar o Google Sign-In.';
+        this.errorMessage = error?.message ?? 'Não foi possível iniciar o Google Sign-In.';
         this.googleLoading = false;
+      });
+  }
+
+  private handleLoginError(error: unknown): void {
+    const payload = normalizeApiErrorPayload(error);
+    this.errorCode = payload.code;
+
+    // Tratamento especial para rate limiting
+    if (payload.code === FRONTEND_ERROR_CATALOG.RATE_LIMIT_LOGIN) {
+      this.retryAfterSeconds = payload.retryAfterSeconds;
+      this.startRetryCountdown();
+    }
+
+    // Use fallback localizado se houver
+    this.errorMessage = getUserFacingMessage(payload.code || '', payload.message);
+  }
+
+  private handleGoogleAuthError(error: unknown): void {
+    const payload = normalizeApiErrorPayload(error);
+    this.errorCode = payload.code;
+
+    // Tratamento especial para rate limiting
+    if (payload.code === FRONTEND_ERROR_CATALOG.RATE_LIMITED) {
+      this.retryAfterSeconds = payload.retryAfterSeconds;
+      this.startRetryCountdown();
+    }
+
+    // Mensagens contextualizadas para Google auth flow
+    this.errorMessage = mapGoogleAuthError(error);
+  }
+
+  private startRetryCountdown(): void {
+    if (!this.retryAfterSeconds || this.retryAfterSeconds <= 0) return;
+
+    this.retryCountdown$?.unsubscribe();
+
+    let remaining = this.retryAfterSeconds;
+    this.retryCountdown$ = interval(1000)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        remaining--;
+        if (remaining <= 0) {
+          this.retryAfterSeconds = undefined;
+          this.retryCountdown$?.unsubscribe();
+        } else {
+          this.retryAfterSeconds = remaining;
+        }
       });
   }
 
@@ -77,7 +153,7 @@ export class LoginComponent {
       }
 
       const clientId = environment.googleClientId?.trim();
-      const googleApi = (window as any).google;
+      const googleApi = (globalThis as any).google;
 
       if (!clientId || !googleApi?.accounts?.id) {
         reject(new Error('Google Sign-In nao configurado. Defina googleClientId no environment.'));

@@ -19,7 +19,9 @@
         <p class="form-kicker">Sua comunidade literaria</p>
         <h2>Entrar</h2>
         <p class="form-intro">Acesse sua conta para continuar lendo, publicando e conversando com a comunidade.</p>
-
+        @if (successMessage) {
+          <p class="alert-success">{{ successMessage }}</p>
+        }
         <div class="input-div one">
           <div class="div">
             <label for="email">E-mail</label>
@@ -54,6 +56,9 @@
 
         @if (errorMessage) {
           <p class="alert-error">{{ errorMessage }}</p>
+          @if (retryAfterSeconds && retryAfterSeconds > 0) {
+            <p class="alert-info">Tente novamente em {{ retryAfterSeconds }} segundo(s).</p>
+          }
         }
 
         <div class="cadastre">
@@ -61,15 +66,22 @@
           <a routerLink="/cadastro">Criar minha conta</a>
         </div>
 
-        <button class="btn" type="submit" [disabled]="loading || form.invalid">
+        <button 
+          class="btn" 
+          type="submit" 
+          [disabled]="loading || form.invalid || (retryAfterSeconds && retryAfterSeconds > 0)">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
 
-        <div class="auth-divider" role="presentation">
+        <div class="auth-divider">
           <span>ou</span>
         </div>
 
-        <button class="btn-google" type="button" [disabled]="googleLoading" (click)="onGoogleLogin()">
+        <button 
+          class="btn-google" 
+          type="button" 
+          [disabled]="googleLoading || (retryAfterSeconds && retryAfterSeconds > 0)" 
+          (click)="onGoogleLogin()">
           {{ googleLoading ? 'Conectando ao Google...' : 'Continuar com Google' }}
         </button>
       </div>

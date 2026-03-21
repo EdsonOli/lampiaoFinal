@@ -1,23 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../../core/errors';
+import { buildApiErrorPayload, normalizeThrownError } from '../http/apiError';
+import { appLogger, serializeError } from '../services/AppLogger';
 
 export function errorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
-  const isAppError = err instanceof AppError;
-  const statusCode = isAppError ? err.statusCode : 500;
-  const message = err.message || 'Internal server error';
-
-  const payload: { error: string; code?: string } = {
-    error: message,
-  };
-
-  if (isAppError && typeof err.code === 'string') {
-    payload.code = err.code;
+  if (res.headersSent) {
+    return;
   }
 
-  res.status(statusCode).json(payload);
+  const normalizedError = normalizeThrownError(err);
+
+  appLogger[normalizedError.statusCode >= 500 ? 'error' : 'warn'](
+    'http.request.failed',
+    normalizedError.logMessage,
+    {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      statusCode: normalizedError.statusCode,
+      code: normalizedError.code,
+      details: normalizedError.details,
+      error: serializeError(err),
+    }
+  );
+
+  res.status(normalizedError.statusCode).json(
+    buildApiErrorPayload(req, normalizedError.statusCode, {
+      message: normalizedError.message,
+      code: normalizedError.code,
+      details: normalizedError.details,
+    })
+  );
 }

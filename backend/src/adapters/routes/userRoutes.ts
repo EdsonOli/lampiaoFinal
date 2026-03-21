@@ -8,6 +8,7 @@ import { auditLog } from '../services/AuditLogger';
 import { getValidationMessage, isValidationError, parseOrThrow } from '../validation/parse';
 import { sanitizeOptionalPlainText, sanitizeProfileImageUrl } from '../validation/sanitizers';
 import { updateMeSchema } from '../validation/schemas';
+import { badRequest, notFound, unauthorized, validationError } from '../http/respondError';
 
 const router = Router();
 
@@ -18,12 +19,12 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
   try {
     const userId = req.auth?.userId;
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para acessar seu perfil.', 'USER_ME_AUTH_REQUIRED');
     }
 
     const user = await getUserById.execute(userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return notFound(res, 'O usuario autenticado nao foi encontrado.', 'USER_ME_NOT_FOUND');
     }
 
     res.json(toPublicUserDTO(user));
@@ -36,7 +37,7 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
   try {
     const userId = req.auth?.userId;
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para atualizar seu perfil.', 'USER_UPDATE_AUTH_REQUIRED');
     }
 
     const payload = parseOrThrow(updateMeSchema, req.body);
@@ -53,11 +54,11 @@ router.put('/me', authenticate, async (req: AuthenticatedRequest, res: Response,
     res.json(toPublicUserDTO(user));
   } catch (error) {
     if (isValidationError(error)) {
-      return res.status(400).json({ message: getValidationMessage(error) });
+      return validationError(res, getValidationMessage(error), 'USER_UPDATE_INVALID_PAYLOAD');
     }
 
     if (error instanceof ValidationError) {
-      return res.status(400).json({ message: error.message });
+      return validationError(res, error.message, 'USER_UPDATE_INVALID_DATA');
     }
 
     next(error);
@@ -68,7 +69,7 @@ router.delete('/me', authenticate, async (req: AuthenticatedRequest, res: Respon
   try {
     const userId = req.auth?.userId;
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return unauthorized(res, 'Voce precisa estar autenticado para excluir sua conta.', 'USER_DELETE_AUTH_REQUIRED');
     }
 
     await deleteUser.execute(userId);
@@ -85,12 +86,12 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
   try {
     const id = String(req.params.id);
     if (!id) {
-      return res.status(400).json({ message: 'Invalid user id' });
+      return badRequest(res, 'O identificador do usuario informado e invalido.', 'USER_ID_INVALID');
     }
 
     const user = await getUserById.execute(id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return notFound(res, 'O usuario solicitado nao foi encontrado.', 'USER_NOT_FOUND');
     }
 
     res.json(toPublicUserDTO(user));

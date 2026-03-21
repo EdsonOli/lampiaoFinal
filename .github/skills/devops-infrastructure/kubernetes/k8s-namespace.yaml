@@ -1,0 +1,102 @@
+---
+# Kubernetes Namespace for Lampiao application
+# Separate namespaces for staging and production provide isolation and resource quotas
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lampiao-prod
+  labels:
+    environment: production
+    managed-by: terraform-or-helm
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lampiao-staging
+  labels:
+    environment: staging
+    managed-by: terraform-or-helm
+
+---
+# Resource Quota for production namespace
+# Ensures no single namespace monopolizes cluster resources
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: lampiao-prod-quota
+  namespace: lampiao-prod
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: "20Gi"
+    limits.cpu: "20"
+    limits.memory: "40Gi"
+    pods: "50"
+    services: "10"
+  scopeSelector:
+    matchExpressions:
+      - operator: In
+        scopeName: PriorityClass
+        values: ["high-priority"]
+
+---
+# Network Policy: Restrict ingress traffic within namespace
+# Only allows traffic from ingress controller and between Lampiao services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lampiao-network-policy
+  namespace: lampiao-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: lampiao
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 4000
+    # Allow from within namespace (pod-to-pod communication)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: lampiao
+      ports:
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 4000
+        - protocol: TCP
+          port: 5432
+  egress:
+    # Allow DNS queries
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow to database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: lampiao-postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow external HTTPS (for Google OAuth, etc.)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

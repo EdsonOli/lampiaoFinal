@@ -23,10 +23,10 @@ interface RegisterResponse extends AuthUser {}
 export class AuthService {
   private readonly USER_KEY = 'lampiao_user';
 
-  private http = inject(HttpClient);
-  private platformId = inject(PLATFORM_ID);
+  private readonly http = inject(HttpClient);
+  private readonly platformId = inject(PLATFORM_ID);
 
-  private currentUserSubject = new BehaviorSubject<AuthUser | null>(this.loadUser());
+  private readonly currentUserSubject = new BehaviorSubject<AuthUser | null>(this.loadUser());
   currentUser$ = this.currentUserSubject.asObservable();
 
   private get apiBaseUrl(): string {

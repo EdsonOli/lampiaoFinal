@@ -4,7 +4,7 @@ import { ValidationError } from '../../core/errors';
 const allowedImageProtocols = new Set(['http:', 'https:']);
 const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'];
 
-function validateImageUrl(urlValue: string, allowedHosts?: string[]): string {
+function validateImageUrl(urlValue: string, allowedHosts?: string[], requireImageExtension = false): string {
   let parsed: URL;
 
   try {
@@ -23,7 +23,9 @@ function validateImageUrl(urlValue: string, allowedHosts?: string[]): string {
 
   const pathname = parsed.pathname.toLowerCase();
 
-  if (!allowedImageExtensions.some((extension) => pathname.endsWith(extension))) {
+  // Google Books and some trusted catalog providers serve covers via dynamic
+  // endpoints that do not include file extensions in the path.
+  if (requireImageExtension && !allowedImageExtensions.some((extension) => pathname.endsWith(extension))) {
     throw new ValidationError('Invalid image URL');
   }
 
@@ -51,7 +53,7 @@ export function sanitizeOptionalUrl(value?: string): string | undefined {
     return undefined;
   }
 
-  const sanitized = sanitizePlainText(value);
+  const sanitized = value.trim();
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
@@ -60,7 +62,7 @@ export function sanitizeBookImageUrl(value?: string): string | undefined {
     return undefined;
   }
 
-  const sanitized = sanitizePlainText(value);
+  const sanitized = value.trim();
 
   if (!sanitized) {
     return undefined;
@@ -81,7 +83,7 @@ export function sanitizeProfileImageUrl(value?: string): string | undefined {
     return undefined;
   }
 
-  const sanitized = sanitizePlainText(value);
+  const sanitized = value.trim();
 
   if (!sanitized) {
     return undefined;

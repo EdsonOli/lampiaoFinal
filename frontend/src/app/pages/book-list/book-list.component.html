@@ -21,248 +21,183 @@
       <img src="/img/lupa.png" alt="Buscar" class="search-icon" />
       <input
         type="text"
-        placeholder="Filtrar por título, autor ou gênero..."
-        [(ngModel)]="filterQuery"
+        placeholder="Buscar livro por título, autor ou gênero..."
+        [value]="searchQuery"
+        (input)="onSearchInput($event.target.value)"
         class="search-input"
-        aria-label="Filtrar livros por titulo, autor ou genero"
+        aria-label="Buscar livros"
       />
+      @if (searchLoading) {
+        <span class="search-spinner">⏳</span>
+      }
     </div>
-    <button class="btn-add" (click)="openModal()">+ Adicionar livro</button>
+    @if (isAdmin) {
+      <button class="btn-add" (click)="openCreateModal()">+ Adicionar livro</button>
+    }
   </div>
 
-  @if (loading) {
-    <div class="status-card">
-      <p class="status-kicker">Organizando a estante</p>
-      <p class="status">Carregando livros...</p>
-    </div>
-  } @else if (error) {
-    <div class="status-card status-card-error">
-      <p class="status-kicker">Nao foi possivel abrir o acervo</p>
-      <p class="status error">{{ error }}</p>
-    </div>
-  } @else if (filteredBooks.length === 0) {
-    <div class="status-card status-card-empty">
-      <p class="status-kicker">Nenhum livro encontrado</p>
-      <p class="status">Tente ajustar sua busca ou adicione um novo titulo ao acervo.</p>
-    </div>
-  } @else {
-    <div class="shelf-head">
-      <div class="feed-label">Acervo vivo</div>
-      <div class="feed-count">{{ filteredBooks.length }} livro{{ filteredBooks.length === 1 ? '' : 's' }}</div>
-    </div>
+  <!-- Resultados da busca -->
+  @if (searchQuery.trim()) {
+    @if (searchLoading) {
+      <app-status-card kicker="Procurando" message="Buscando livros..." />
+    } @else if (searchError) {
+      <app-status-card kicker="Erro na busca" [message]="searchError" variant="error" />
+    } @else if (searchResults.length === 0) {
+      <app-status-card kicker="Nenhum livro encontrado" message="Tente ajustar sua busca ou procure por outro termo." variant="empty" />
+    } @else {
+      <div class="shelf-head">
+        <div class="feed-label">
+          {{ currentSearchSource === 'local' ? 'Seu acervo' : 'Resultados de busca' }}
+        </div>
+        <div class="feed-count">
+          {{ searchResults.length }} livro{{ searchResults.length === 1 ? '' : 's' }}
+        </div>
+      </div>
 
-    <div class="book-grid">
-      @for (book of filteredBooks; track book.id) {
-        <a class="book-card" [routerLink]="['/livros', book.id]">
-          @if (isAdmin) {
-            <button class="book-edit-btn" type="button" (click)="openEditModal(book, $event)">Editar</button>
-          }
-          <div class="cover-frame">
-            @if (book.img) {
-              <img [src]="book.img" [alt]="book.name" class="book-cover" />
-            } @else {
-              <div class="book-cover-placeholder">📖</div>
-            }
-          </div>
-          <div class="book-info">
-            <h2>{{ book.name }}</h2>
-            <p class="author">{{ book.writer }}</p>
-            <div class="book-meta">
-              <span class="genre">{{ book.genre }}</span>
-              <span class="book-link">Abrir detalhes</span>
+      <div class="book-grid search-results" (scroll)="onSearchScroll($event)">
+        @for (result of searchResults; track getBookId(result.book)) {
+          <button
+            type="button"
+            class="book-card result-card" 
+            [class.from-api]="result.source === 'api'"
+            [class.from-local]="result.source === 'local'"
+            [class.is-pending]="isPendingBookResult(result.book)"
+            [attr.aria-busy]="isPendingBookResult(result.book)"
+            [attr.aria-label]="getResultActionLabel(result) + ': ' + result.book.name"
+            (click)="selectBook(result)"
+            [disabled]="pendingBookActionId !== null"
+          >
+            <div class="source-badge">
+              {{ getResultActionLabel(result) }}
             </div>
+            
+            <div class="cover-frame">
+              @if (result.book.img) {
+                <img [src]="result.book.img" [alt]="result.book.name" class="book-cover" />
+              } @else {
+                <div class="book-cover-placeholder">📖</div>
+              }
+            </div>
+            <div class="book-info">
+              <h2>{{ result.book.name }}</h2>
+              <p class="author">{{ result.book.writer }}</p>
+              <div class="book-meta">
+                <span class="genre">{{ result.book.genre }}</span>
+                @if (getSeriesHint(result)) {
+                  <span class="series-chip" title="Série identificada na fonte externa">
+                    {{ getSeriesHint(result) }}
+                  </span>
+                }
+              </div>
+            </div>
+          </button>
+        }
+
+        @if (loadingMore) {
+          <div class="loading-more">
+            <p>Carregando mais resultados...</p>
           </div>
-        </a>
-      }
+        }
+      </div>
+    }
+  }
+
+  <!-- Estado inicial (sem busca) -->
+  @if (!searchQuery.trim()) {
+    <div class="status-card status-card-welcome">
+      <p class="status-kicker">Bem vindo ao acervo</p>
+      <p class="status">Use o campo de busca acima para descobrir e adicionar livros ao acervo comunitário.</p>
     </div>
   }
 </main>
 
-<!-- ====================== MODAL ====================== -->
-@if (showModal) {
-  <div class="modal-overlay" (click)="closeModal()">
-    <div class="modal-box" (click)="$event.stopPropagation()">
+<!-- Modal para criar livro manualmente (apenas admin) -->
+@if (showCreateModal) {
+  <div class="modal-overlay" (click)="closeCreateModal()" (keydown.escape)="closeCreateModal()">
+    <div class="modal-box" tabindex="-1" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+      <h2 class="modal-title">Adicionar livro manualmente</h2>
+      <p class="modal-sub">Preencha os dados do livro para adicionar ao acervo.</p>
 
-      <!-- Etapa 1: Pesquisa Google Books -->
-      @if (modalStep === 'search') {
-        <h2 class="modal-title">Adicionar livro</h2>
-        <p class="modal-sub">Pesquise pelo titulo ou autor para preencher automaticamente e enriquecer o acervo da comunidade.</p>
-
-        <div class="google-search-bar">
+      <div class="form-grid">
+        <label class="form-field form-field--full">
+          <span>Título *</span>
+          <input type="text" [(ngModel)]="form.name" class="modal-input" placeholder="Título do livro" />
+        </label>
+        <label class="form-field">
+          <span>Autor *</span>
+          <input type="text" [(ngModel)]="form.writer" class="modal-input" placeholder="Nome do autor" />
+        </label>
+        <label class="form-field">
+          <span>Gênero *</span>
+          <input type="text" [(ngModel)]="form.genre" class="modal-input" placeholder="Ex: Romance, Ficção..." />
+        </label>
+        <label class="form-field">
+          <span>Páginas</span>
+          <input type="number" [(ngModel)]="form.nPages" class="modal-input" min="1" />
+        </label>
+        <label class="form-field">
+          <span>Ano de publicação</span>
+          <input type="number" [(ngModel)]="form.yearPublication" class="modal-input" min="1" max="2100" />
+        </label>
+        <label class="form-field">
+          <span>ISBN *</span>
+          <input type="text" [(ngModel)]="form.isbn" class="modal-input" placeholder="9780000000000" />
+        </label>
+        <label class="form-field">
+          <span>Editora *</span>
+          <input type="text" [(ngModel)]="form.publishingCompany" class="modal-input" placeholder="Nome da editora" />
+        </label>
+        <label class="form-field form-field--full">
+          <span>URL da capa</span>
           <input
-            type="text"
-            placeholder="Ex: Dom Casmurro, Machado de Assis..."
-            [(ngModel)]="googleQuery"
-            (input)="onGoogleInput()"
+            type="url"
+            [(ngModel)]="form.img"
+            (ngModelChange)="onCoverUrlChange($event)"
             class="modal-input"
-            autofocus
+            placeholder="https://..."
           />
-          @if (googleLoading) {
-            <span class="google-spinner">⏳</span>
+        </label>
+        <label class="form-field form-field--full">
+          <span>Upload da capa</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif"
+            (change)="onCoverFileSelected($event)"
+            class="modal-input"
+          />
+          @if (coverUploadBusy) {
+            <small class="upload-helper">Enviando {{ selectedCoverName }}...</small>
           }
-        </div>
-
-        @if (googleError) {
-          <p class="modal-error">{{ googleError }}</p>
-        }
-
-        @if (googleResults.length > 0) {
-          <div class="bulk-tools">
-            <span class="bulk-count">{{ selectedGoogleIds.size }} selecionado(s)</span>
-            <label class="bulk-filter">
-              <input
-                type="checkbox"
-                [(ngModel)]="showOnlyCompleteCandidates"
-                (change)="onCompleteFilterToggle()"
-                [disabled]="bulkSaving"
-              />
-              Mostrar só com dados obrigatórios
-              @if (hiddenIncompleteCount > 0 && showOnlyCompleteCandidates) {
-                <small>({{ hiddenIncompleteCount }} oculto(s))</small>
-              }
-            </label>
-            <div class="bulk-actions">
-              <button class="btn-secondary" (click)="selectAllCandidates()" [disabled]="bulkSaving">Selecionar todos</button>
-              <button class="btn-secondary" (click)="clearSelectedCandidates()" [disabled]="bulkSaving">Limpar</button>
-              <button class="btn-primary" (click)="submitSelectedBooks()" [disabled]="bulkSaving || selectedGoogleIds.size === 0">
-                {{ bulkSaving ? 'Cadastrando...' : 'Cadastrar selecionados' }}
-              </button>
-            </div>
+          @if (coverUploadError) {
+            <small class="upload-helper upload-helper-error">{{ coverUploadError }}</small>
+          }
+        </label>
+        <div class="form-field form-field--full cover-preview-shell">
+          <span>Pré-visualização da capa</span>
+          <div class="cover-preview-frame">
+            @if (coverPreviewUrl) {
+              <img [src]="coverPreviewUrl" alt="Pré-visualização da capa" class="cover-preview-image" />
+            } @else {
+              <div class="cover-preview-placeholder">Sem capa selecionada</div>
+            }
           </div>
-
-          @if (visibleGoogleResults.length === 0) {
-            <p class="modal-error">Nenhum resultado com dados completos para cadastro em lote.</p>
-          }
-
-          <ul class="google-results" (scroll)="onResultsScroll($event)">
-            @for (r of visibleGoogleResults; track r.googleId) {
-              <li class="google-result-item" [class.selected]="isCandidateSelected(r)" [class.already-registered]="isAlreadyRegistered(r)">
-                <label class="result-check">
-                  <input
-                    type="checkbox"
-                    [checked]="isCandidateSelected(r)"
-                    (change)="toggleCandidate(r)"
-                    [disabled]="bulkSaving || isAlreadyRegistered(r)"
-                  />
-                </label>
-                @if (r.img) {
-                  <img [src]="r.img" [alt]="r.name" class="result-thumb" />
-                } @else {
-                  <div class="result-thumb result-thumb-placeholder">📖</div>
-                }
-                <div class="result-info">
-                  <strong>{{ r.name }}</strong>
-                  <span>{{ r.writer }}</span>
-                  <span class="result-meta">{{ r.publishingCompany }} · {{ r.yearPublication || '?' }}</span>
-                  @if (isAlreadyRegistered(r)) {
-                    <span class="result-duplicate">Ja cadastrado</span>
-                  }
-                </div>
-                <button class="btn-secondary btn-small" (click)="selectCandidate(r)" [disabled]="bulkSaving">Editar antes</button>
-              </li>
-            }
-
-            @if (googleLoadingMore) {
-              <li class="google-load-more">Carregando mais resultados...</li>
-            }
-          </ul>
-        }
-
-        <div class="modal-actions">
-          <button class="btn-secondary" (click)="fillManually()">Preencher manualmente</button>
-          <button class="btn-secondary" (click)="closeModal()">Cancelar</button>
         </div>
+        <label class="form-field form-field--full">
+          <span>Sinopse</span>
+          <textarea [(ngModel)]="form.synopsis" class="modal-input modal-textarea" rows="4" placeholder="Resumo do livro..."></textarea>
+        </label>
+      </div>
+
+      @if (saveError) {
+        <p class="modal-error">{{ saveError }}</p>
       }
 
-      <!-- Etapa 2: Confirmar / Editar formulário -->
-      @if (modalStep === 'form') {
-        <h2 class="modal-title">{{ formMode === 'edit' ? 'Editar dados do livro' : 'Confirmar dados do livro' }}</h2>
-
-        <div class="form-grid">
-          <label class="form-field form-field--full">
-            <span>Título *</span>
-            <input type="text" [(ngModel)]="form.name" class="modal-input" placeholder="Título do livro" />
-          </label>
-          <label class="form-field">
-            <span>Autor *</span>
-            <input type="text" [(ngModel)]="form.writer" class="modal-input" placeholder="Nome do autor" />
-          </label>
-          <label class="form-field">
-            <span>Gênero *</span>
-            <input type="text" [(ngModel)]="form.genre" class="modal-input" placeholder="Ex: Romance, Ficção..." />
-          </label>
-          <label class="form-field">
-            <span>Páginas</span>
-            <input type="number" [(ngModel)]="form.nPages" class="modal-input" min="1" />
-          </label>
-          <label class="form-field">
-            <span>Ano de publicação</span>
-            <input type="number" [(ngModel)]="form.yearPublication" class="modal-input" min="1" max="2100" />
-          </label>
-          <label class="form-field">
-            <span>ISBN *</span>
-            <input type="text" [(ngModel)]="form.isbn" class="modal-input" placeholder="9780000000000" />
-          </label>
-          <label class="form-field">
-            <span>Editora *</span>
-            <input type="text" [(ngModel)]="form.publishingCompany" class="modal-input" placeholder="Nome da editora" />
-          </label>
-          <label class="form-field form-field--full">
-            <span>URL da capa</span>
-            <input
-              type="url"
-              [(ngModel)]="form.img"
-              (ngModelChange)="onCoverUrlChange($event)"
-              class="modal-input"
-              placeholder="https://..."
-            />
-          </label>
-          <label class="form-field form-field--full">
-            <span>Upload da capa</span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/avif"
-              (change)="onCoverFileSelected($event)"
-              class="modal-input"
-            />
-            @if (coverUploadBusy) {
-              <small class="upload-helper">Enviando {{ selectedCoverName }}...</small>
-            }
-            @if (coverUploadError) {
-              <small class="upload-helper upload-helper-error">{{ coverUploadError }}</small>
-            }
-          </label>
-          <div class="form-field form-field--full cover-preview-shell">
-            <span>Pré-visualização da capa</span>
-            <div class="cover-preview-frame">
-              @if (coverPreviewUrl) {
-                <img [src]="coverPreviewUrl" alt="Pré-visualização da capa" class="cover-preview-image" />
-              } @else {
-                <div class="cover-preview-placeholder">Sem capa selecionada</div>
-              }
-            </div>
-          </div>
-          <label class="form-field form-field--full">
-            <span>Sinopse</span>
-            <textarea [(ngModel)]="form.synopsis" class="modal-input modal-textarea" rows="4" placeholder="Resumo do livro..."></textarea>
-          </label>
-        </div>
-
-        @if (saveError) {
-          <p class="modal-error">{{ saveError }}</p>
-        }
-
-        <div class="modal-actions">
-          <button class="btn-primary" (click)="submitBook()" [disabled]="saving">
-            {{ saving ? 'Salvando...' : (formMode === 'edit' ? 'Salvar alteracoes' : 'Cadastrar livro') }}
-          </button>
-          @if (formMode === 'create') {
-            <button class="btn-secondary" (click)="backToSearch()">Voltar</button>
-          }
-          <button class="btn-secondary" (click)="closeModal()">Cancelar</button>
-        </div>
-      }
-
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="submitBook()" [disabled]="saving">
+          {{ saving ? 'Salvando...' : 'Cadastrar livro' }}
+        </button>
+        <button class="btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+      </div>
     </div>
   </div>
 }
