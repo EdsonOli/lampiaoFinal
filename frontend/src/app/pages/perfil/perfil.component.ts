@@ -432,6 +432,17 @@ export class PerfilComponent implements OnInit {
       .subscribe(notebooks => {
         this.zone.run(() => {
           this.notebooks = notebooks;
+          
+          // Debug completo dos dados recebidos
+          console.log('[DEBUG Perfil] Notebooks recebidos:', notebooks.length);
+          console.log('[DEBUG Perfil] Favoritos no array:', notebooks.filter(nb => nb.favorite));
+          console.log('[DEBUG Perfil] Status dos notebooks:', notebooks.map(nb => ({
+            bookId: nb.bookId,
+            status: nb.status,
+            favorite: nb.favorite,
+            grade: nb.grade
+          })));
+          
           this.buildShelfData();
           this.cdr.detectChanges();
         });
@@ -482,10 +493,27 @@ export class PerfilComponent implements OnInit {
     };
 
     this.favoriteCount = this.notebooks.filter(notebook => notebook.favorite).length;
-    // Legacy parity: paginometro counts pages from books marked as "Lido".
-    this.totalPages = this.notebooks
-      .filter(notebook => notebook.status === 'Lido')
-      .reduce((sum, notebook) => sum + (booksById.get(notebook.bookId)?.nPages ?? 0), 0);
+    
+    // Paginômetro: soma páginas dos livros marcados como "Lido"
+    const readNotebooks = this.notebooks.filter(notebook => notebook.status === 'Lido');
+    this.totalPages = readNotebooks.reduce((sum, notebook) => {
+      const book = booksById.get(notebook.bookId);
+      const pages = book?.nPages ?? 0;
+      return sum + pages;
+    }, 0);
+
+    // Debug: log para verificar se dados estão corretos
+    if (readNotebooks.length > 0 && this.totalPages < 100) {
+      console.warn('[Paginômetro] Valor suspeito:', {
+        totalPages: this.totalPages,
+        readBooksCount: readNotebooks.length,
+        booksWithPages: readNotebooks.map(nb => ({
+          bookId: nb.bookId,
+          bookName: booksById.get(nb.bookId)?.name,
+          pages: booksById.get(nb.bookId)?.nPages,
+        }))
+      });
+    }
   }
 
   private refreshLoading(): void {
